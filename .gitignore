@@ -1,2 +1,5 @@
 .vscode/*
 .idea/*
+vmlinux/*
+*.skel.h
+Build/
