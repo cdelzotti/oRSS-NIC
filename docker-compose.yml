@@ -1,0 +1,16 @@
+version: "3"
+services:
+  ubuntu1:
+    build: .
+    container_name: ubuntu1
+    restart: always
+    tty : true
+    network_mode: bridge
+    privileged: true
+  ubuntu2:
+    build: .
+    container_name: ubuntu2
+    restart: always
+    tty : true
+    network_mode: bridge
+    privileged: true

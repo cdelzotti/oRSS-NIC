@@ -1,2 +1,2 @@
-# define RX_IFINDEX 3
-# define TX_IFINDEX 6
+#define RX_IFINDEX 59
+#define TX_IFINDEX 61

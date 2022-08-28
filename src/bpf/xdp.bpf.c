@@ -7,6 +7,14 @@
 #include <bpf/bpf_endian.h>
 #include "xdp.bpf.h"
 
+// Create redirection map for XDP_REDIRECT action
+struct {
+    __uint(type, BPF_MAP_TYPE_DEVMAP);
+    __uint(key_size, sizeof(int));
+    __uint(value_size, sizeof(int));
+    __uint(max_entries, 100);
+} map_redir SEC(".maps");
+
 // Create a per CPU hash map to store the connection state
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
@@ -18,13 +26,15 @@ struct {
 SEC("xdp")
 int xdp_rx(struct xdp_md *ctx)
 {
-    // Returns the program to the TX interface
-    return bpf_redirect(TX_IFINDEX, 0);
+    // Returns the packet to the TX interface
+    int ifindex = TX_IFINDEX;
+    return bpf_redirect_map(&map_redir, ifindex, 0);
 }
 
 SEC("xdp")
 int xdp_tx(struct xdp_md *ctx)
 {
-    // Returns the program to the RX interface
-    return bpf_redirect(RX_IFINDEX, 0);
+    // Returns the packet to the RX interface
+    int ifindex = RX_IFINDEX;
+    return bpf_redirect_map(&map_redir, ifindex, 0);
 }

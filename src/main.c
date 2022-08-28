@@ -35,6 +35,20 @@ int main(int argc, char const *argv[])
     signal(SIGINT, handle_interrupt);
     // Load BPF
     struct xdp_bpf *skel = attach_bpf();
+    // Setup redirection map
+    int RX = RX_IFINDEX;
+    int TX = TX_IFINDEX;
+    int redir_map_fd = bpf_map__fd(skel->maps.map_redir);
+    int err = bpf_map_update_elem(redir_map_fd, &TX, &RX, 0);
+    if (err) {
+        printf("Error setting up redirection map TX to RX: %s\n", strerror(err));
+        return -1;
+    }
+    err = bpf_map_update_elem(redir_map_fd, &RX, &TX, 0);
+    if (err) {
+        printf("Error setting up redirection map RX to TX: %d\n", strerror(err));
+        return -1;
+    }
     // Setup maps
     int connections_fd = bpf_map__fd(skel->maps.connections);
     if (connections_fd < 0) {
