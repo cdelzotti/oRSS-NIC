@@ -46,7 +46,7 @@ int main(int argc, char const *argv[])
     }
     err = bpf_map_update_elem(redir_map_fd, &RX, &TX, 0);
     if (err) {
-        printf("Error setting up redirection map RX to TX: %d\n", strerror(err));
+        printf("Error setting up redirection map RX to TX: %s\n", strerror(err));
         return -1;
     }
     // Setup maps
