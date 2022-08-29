@@ -26,15 +26,11 @@ struct {
 SEC("xdp")
 int xdp_rx(struct xdp_md *ctx)
 {
-    // Returns the packet to the TX interface
-    int ifindex = TX_IFINDEX;
-    return bpf_redirect_map(&map_redir, ifindex, 0);
+    return bpf_redirect_map(&map_redir, ctx->ingress_ifindex, 0);
 }
 
 SEC("xdp")
 int xdp_tx(struct xdp_md *ctx)
 {
-    // Returns the packet to the RX interface
-    int ifindex = RX_IFINDEX;
-    return bpf_redirect_map(&map_redir, ifindex, 0);
+    return bpf_redirect_map(&map_redir, ctx->ingress_ifindex, 0);
 }
