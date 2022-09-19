@@ -44,14 +44,14 @@ struct xdp_bpf* attach_bpf(){
     struct xdp_bpf *skel = load_bpf();
     /* Attach RX XDP */
     int rx_fd = bpf_program__fd(skel->progs.xdp_rx);
-    int err = bpf_xdp_attach(RX_IFINDEX, rx_fd, XDP_FLAGS_DRV_MODE, 0);
+    int err = bpf_xdp_attach(RX_IFINDEX, rx_fd, XDP_LOADING_MODE, 0);
     if (err) {
         fprintf(stderr, "Failed to attach XDP program to RX: %s\n", strerror(err));
         exit(1);
     }
     /* Attach TX XDP */
     int tx_fd = bpf_program__fd(skel->progs.xdp_tx);
-    err = bpf_xdp_attach(TX_IFINDEX, tx_fd, XDP_FLAGS_DRV_MODE, 0);
+    err = bpf_xdp_attach(TX_IFINDEX, tx_fd, XDP_LOADING_MODE, 0);
     if (err) {
         fprintf(stderr, "Failed to attach XDP program to TX: %s\n", strerror(err));
         exit(1);
