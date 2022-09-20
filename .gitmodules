@@ -1,3 +1,6 @@
 [submodule "libbpf"]
 	path = libbpf
 	url = https://github.com/libbpf/libbpf.git
+[submodule "ovs"]
+	path = ovs
+	url = https://github.com/openvswitch/ovs.git

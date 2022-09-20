@@ -35,19 +35,4 @@ find_package(BpfObject REQUIRED)
 
 bpf_object(xdp src/bpf/xdp.bpf.c)
 add_dependencies(xdp_skel libbpf-build)
-add_executable(orss src/main.c src/env.h src/bpf/xdp.bpf.h src/load_bpf.c src/load_bpf.h)
 target_link_libraries(orss xdp_skel)
-# target_compile_options(program PRIVATE --target armv7a-linux-gnueabihf)
-
-# Create an executable for each application
-#file(GLOB apps *.bpf.c)
-#foreach(app ${apps})
-#    get_filename_component(app_stem ${app} NAME_WE)
-
-    # Build object skeleton and depend skeleton on libbpf build
-#    bpf_object(${app_stem} ${app_stem}.bpf.c)
-#    add_dependencies(${app_stem}_skel libbpf-build)
-
-#    add_executable(${app_stem} ${app_stem}.c src/bpf/program.bpf.h)
-#    target_link_libraries(${app_stem} ${app_stem}_skel)
-#endforeach()
