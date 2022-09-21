@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include "bpf/xdp.bpf.h"
 
+#include "ovs_utils.h"
+
 uint8_t looping = 1;
 
 void add_flow(int in_port, int out_port, int proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port){
