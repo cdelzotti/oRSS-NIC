@@ -1596,52 +1596,6 @@ ofctl_dump_flows(struct ovs_cmdl_context *ctx)
     }
 }
 
-void
-custom_dump_flows(char *dump_specs, struct ofputil_flow_stats **fses, size_t *n_fses)
-{
-    struct ofputil_flow_stats_request fsr;
-    enum ofputil_protocol protocol;
-    struct vconn *vconn;
-
-    struct ovs_cmdl_context ctx;
-    if (dump_specs == NULL) {
-        ctx.argc = 2;
-        ctx.argv = malloc(sizeof(char*) * ctx.argc);
-    } else {
-        ctx.argc = 3;
-        ctx.argv = malloc(sizeof(char*) * ctx.argc);
-        ctx.argv[2] = dump_specs;
-    }
-    ctx.argv[0] = "dump-flows";
-    ctx.argv[1] = OVS_BRIDGE;
-
-    vconn = prepare_dump_flows(ctx.argc, ctx.argv, false,
-                                &fsr, &protocol);
-
-
-    run(vconn_dump_flows(vconn, &fsr, protocol, fses, n_fses),
-        "dump flows");
-
-    free(ctx.argv);
-
-    // struct ds s = DS_EMPTY_INITIALIZER;
-    // for (size_t i = 0; i < n_fses; i++) {
-    //     ds_clear(&s);
-    //     ofputil_flow_stats_format(&s, &fses[i],
-    //                                 ports_to_show(ctx->argv[1]),
-    //                                 tables_to_show(ctx->argv[1]),
-    //                                 1);
-    //     printf(" %s\n", ds_cstr(&s));
-    // }
-    // ds_destroy(&s);
-
-    // for (size_t i = 0; i < n_fses; i++) {
-        // free(CONST_CAST(struct ofpact *, fses[i].ofpacts));
-    // }
-    // free(fses);
-
-    vconn_close(vconn);
-}
 
 void free_dump(struct ofputil_flow_stats *fses, size_t n_fses) {
     for (size_t i = 0; i < n_fses; i++) {
@@ -1866,16 +1820,6 @@ ofctl_add_flow(struct ovs_cmdl_context *ctx)
     ofctl_flow_mod(ctx->argc, ctx->argv, OFPFC_ADD);
 }
 
-void custom_add_flow(char *flow_spec)
-{
-    int argc = 3;
-    char *argv[argc];
-    argv[0] = "add-flow";
-    argv[1] = OVS_BRIDGE;
-    argv[2] = flow_spec;
-    ofctl_flow_mod(argc, argv, OFPFC_ADD);
-}
-
 static void
 ofctl_add_flows(struct ovs_cmdl_context *ctx)
 {
@@ -1892,17 +1836,6 @@ static void
 ofctl_del_flows(struct ovs_cmdl_context *ctx)
 {
     ofctl_flow_mod(ctx->argc, ctx->argv, strict ? OFPFC_DELETE_STRICT : OFPFC_DELETE);
-}
-
-void custom_del_flows()
-{
-    struct ovs_cmdl_context ctx;
-    ctx.argc = 2;
-    ctx.argv = (char **)malloc(sizeof(char *) * 2);
-    ctx.argv[0] = "del-flows";
-    ctx.argv[1] = OVS_BRIDGE;
-    ofctl_flow_mod(ctx.argc, ctx.argv, OFPFC_DELETE);
-    free(ctx.argv);
 }
 
 static bool
@@ -5183,4 +5116,57 @@ static const struct ovs_cmdl_command all_commands[] = {
 static const struct ovs_cmdl_command *get_all_commands(void)
 {
     return all_commands;
+}
+
+// Custom functions to avoid executing shell commands
+
+void custom_del_flows()
+{
+    struct ovs_cmdl_context ctx;
+    ctx.argc = 2;
+    ctx.argv = (char **)malloc(sizeof(char *) * 2);
+    ctx.argv[0] = "del-flows";
+    ctx.argv[1] = OVS_BRIDGE;
+    ofctl_flow_mod(ctx.argc, ctx.argv, OFPFC_DELETE);
+    free(ctx.argv);
+}
+
+void custom_add_flow(char *flow_spec)
+{
+    int argc = 3;
+    char *argv[argc];
+    argv[0] = "add-flow";
+    argv[1] = OVS_BRIDGE;
+    argv[2] = flow_spec;
+    ofctl_flow_mod(argc, argv, OFPFC_ADD);
+}
+
+void custom_dump_flows(char *dump_specs, struct ofputil_flow_stats **fses, size_t *n_fses)
+{
+    struct ofputil_flow_stats_request fsr;
+    enum ofputil_protocol protocol;
+    struct vconn *vconn;
+
+    struct ovs_cmdl_context ctx;
+    if (dump_specs == NULL) {
+        ctx.argc = 2;
+        ctx.argv = malloc(sizeof(char*) * ctx.argc);
+    } else {
+        ctx.argc = 3;
+        ctx.argv = malloc(sizeof(char*) * ctx.argc);
+        ctx.argv[2] = dump_specs;
+    }
+    ctx.argv[0] = "dump-flows";
+    ctx.argv[1] = OVS_BRIDGE;
+
+    vconn = prepare_dump_flows(ctx.argc, ctx.argv, false,
+                                &fsr, &protocol);
+
+
+    run(vconn_dump_flows(vconn, &fsr, protocol, fses, n_fses),
+        "dump flows");
+
+    free(ctx.argv);
+
+    vconn_close(vconn);
 }
