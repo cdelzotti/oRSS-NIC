@@ -20,7 +20,7 @@ struct {
 
 // Create a per CPU hash map to store the connection state
 struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(type, BPF_MAP_TYPE_PERCPU_HASH);
     __uint(key_size, sizeof(struct FiveTuple));
     __uint(value_size, sizeof(struct ConnectionState));
     __uint(max_entries, 4096*64);

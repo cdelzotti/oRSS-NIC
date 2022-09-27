@@ -5120,6 +5120,18 @@ static const struct ovs_cmdl_command *get_all_commands(void)
 
 // Custom functions to avoid executing shell commands
 
+void custom_del_flow(char *flow_spec)
+{
+    struct ovs_cmdl_context ctx;
+    ctx.argc = 2;
+    ctx.argv = (char **)malloc(sizeof(char *) * 3);
+    ctx.argv[0] = "del-flows";
+    ctx.argv[1] = OVS_BRIDGE;
+    ctx.argv[2] = flow_spec;
+    ofctl_flow_mod(ctx.argc, ctx.argv, OFPFC_DELETE);
+    free(ctx.argv);
+}
+
 void custom_del_flows()
 {
     struct ovs_cmdl_context ctx;

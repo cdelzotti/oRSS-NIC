@@ -64,7 +64,12 @@ add_compile_definitions(DPDK_NETDEV)
 
 add_compile_options(-mssse3 -fpic -ggdb)
 add_executable(orss 
-src/main.c src/env.h src/bpf/xdp.bpf.h src/load_bpf.c src/load_bpf.h 
+src/main.c 
+src/env.h 
+src/bpf/xdp.bpf.h 
+src/load_bpf.c src/load_bpf.h
+src/ringbuffer.c src/ringbuffer.h
+src/hashmap.c src/hashmap.h 
 # ovs/lib/byte-order.h 
 # ovs/lib/flow.h ovs/lib/flow.c 
 # ovs/lib/classifier.h ovs/lib/classifier.c

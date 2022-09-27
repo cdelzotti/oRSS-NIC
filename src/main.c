@@ -10,6 +10,7 @@
 #include "ovs-ofctl.h"
 #include "command-line.h"
 #include "openvswitch/ofp-flow.h"
+#include "hashmap.h"
 
 uint8_t looping = 1;
 
@@ -28,6 +29,22 @@ void add_flow(int in_port, int out_port, int proto, uint32_t src_ip, uint32_t ds
         dst_port,
         out_port);
     custom_add_flow(str);
+}
+
+void del_flow(int in_port, int out_port, int proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port){
+    char str[150];
+    char src_ip_str[15];
+    char dst_ip_str[15];
+    sprintf(src_ip_str, "%d.%d.%d.%d", src_ip & 0xFF, (src_ip >> 8) & 0xFF, (src_ip >> 16) & 0xFF, (src_ip >> 24) & 0xFF);
+    sprintf(dst_ip_str, "%d.%d.%d.%d", dst_ip & 0xFF, (dst_ip >> 8) & 0xFF, (dst_ip >> 16) & 0xFF, (dst_ip >> 24) & 0xFF);
+    sprintf(str, "in_port=%d,ip,dl_type=0x0800,nw_proto=%d,nw_src=%s,nw_dst=%s,tp_src=%u,tp_dst=%u", 
+        in_port,
+        proto,
+        src_ip_str,
+        dst_ip_str,
+        src_port,
+        dst_port);
+    custom_del_flow(str);
 }
 
 void init_flows(){
@@ -66,25 +83,75 @@ void handle_interrupt(int sig) {
     looping = 0;
 }
 
+void collect_map(struct FiveTuple key, int map_fd, struct ConnectionState *value){
+    int nb_cpus = libbpf_num_possible_cpus();
+    struct ConnectionState state[nb_cpus];
+    bpf_map_lookup_elem(map_fd, &key, &state);
+    for (int i = 0; i < nb_cpus; i++){
+        if (state[i].SYN)
+            value->SYN = 1;
+        if (state[i].SYNACK)
+            value->SYNACK = 1;
+        if (state[i].ACK)
+            value->ACK = 1;
+        if (state[i].FIN)
+            value->FIN = 1;
+        if (state[i].HANDLED)
+            value->HANDLED = 1;
+    }
+}
+
+void mark_handled(struct FiveTuple key, int map_fd){
+    int nb_cpus = libbpf_num_possible_cpus();
+    struct ConnectionState state[nb_cpus];
+    bpf_map_lookup_elem(map_fd, &key, &state);
+    for (int i = 0; i < nb_cpus; i++){
+        state[i].SYN = 1;
+        state[i].SYNACK = 1;
+        state[i].ACK = 1;
+        state[i].HANDLED = 1;
+    }
+    bpf_map_update_elem(map_fd, &key, &state, BPF_ANY);
+}
+
+void mark_fin(struct FiveTuple key, int map_fd){
+    int nb_cpus = libbpf_num_possible_cpus();
+    struct ConnectionState state[nb_cpus];
+    bpf_map_lookup_elem(map_fd, &key, &state);
+    for (int i = 0; i < nb_cpus; i++){
+        state[i].FIN = 1;
+    }
+    bpf_map_update_elem(map_fd, &key, &state, BPF_ANY);
+}
+
 int user_space_prog(int connections_map_fd){
     // Contains the user space logic
     // Typically, should be a forever looping program
     // First, allow ARP flooding
     init_flows();
+    struct HashMap *map = hashmap_init();
     while (looping)
     {
         struct FiveTuple prev_key = {};
         struct FiveTuple key;
         printf("Printing connections map:\n");
+        struct FiveTuple key_to_delete[HASHMAP_SIZE];
+        int key_to_delete_index = 0;
         while(bpf_map_get_next_key(connections_map_fd, &prev_key, &key) == 0){
-            struct ConnectionState state; 
-            bpf_map_lookup_elem(connections_map_fd, &key, &state);
+            struct ConnectionState state = {0};
+            collect_map(key, connections_map_fd, &state); 
             uint64_t packets;
-            if (state.ACK && state.SYN && state.SYNACK){
-                printf("[ESTABLISHED] ");
+            if (state.ACK && state.SYN && state.SYNACK && !state.FIN){
+                if (state.HANDLED)
+                    printf("[ESTABLISHED] ");
+                else
+                    printf("[ESTABLISHED (new)] ");
                 packets = get_flow_stats(key.src_ip, key.dst_ip, key.src_port, key.dst_port);
             } else if (state.FIN) {
                 printf("[TERMINATED] ");
+                del_flow(RX_SWITCH_IFINDEX,TX_SWITCH_IFINDEX, key.proto, key.src_ip, key.dst_ip, key.src_port, key.dst_port);
+                key_to_delete[key_to_delete_index] = key;
+                key_to_delete_index++;
                 packets = 0;
             } else {
                 printf("[HANDSHAKING] ");
@@ -93,18 +160,35 @@ int user_space_prog(int connections_map_fd){
             printf("%d.%d.%d.%d:%u -> %d.%d.%d.%d:%u ", 
                 key.src_ip & 0xFF, (key.src_ip >> 8) & 0xFF, (key.src_ip >> 16) & 0xFF, (key.src_ip >> 24) & 0xFF, (unsigned int) key.src_port,
                 key.dst_ip & 0xFF, (key.dst_ip >> 8) & 0xFF, (key.dst_ip >> 16) & 0xFF, (key.dst_ip >> 24) & 0xFF, (unsigned int) key.dst_port);
-            prev_key = key;
-            printf("(%llu packets received)\n", packets);
+            printf("(%llu packets received)", packets);
             if (!state.HANDLED){
-                // Add flow
                 add_flow(RX_SWITCH_IFINDEX, TX_SWITCH_IFINDEX, key.proto, key.src_ip, key.dst_ip, key.src_port, key.dst_port);
-                add_flow(TX_SWITCH_IFINDEX, RX_SWITCH_IFINDEX, key.proto, key.dst_ip, key.src_ip, key.dst_port, key.src_port);
-                // Mark the connection as handled
-                state.HANDLED = 1;
-                bpf_map_update_elem(connections_map_fd, &key, &state, BPF_ANY);
+                // Add entry to hashmap
+                hashmap_new(map, &key);
+                mark_handled(key, connections_map_fd);
             }
+            struct RingBuffer *ring_buffer = hashmap_get(map, &key);
+            if (ring_buffer){
+                uint64_t last = ringbuffer_get_last(ring_buffer);
+                ringbuffer_add(ring_buffer, packets);
+                if (ringbuffer_is_flat(ring_buffer)){
+                    printf(" (flat ring buffer)");
+                    // Mark the connection as terminated
+                    mark_fin(key, connections_map_fd);
+                    // Remove entry from hashmap
+                    hashmap_remove(map, &key);
+                }
+                printf(" RB:(val:%d, last:%llu)", ring_buffer->size, last);
+            } else {
+                printf(" (no ring buffer)");
+            }
+            printf("\n");
+            prev_key = key;
         }
         printf("-------------------------\n");
+        for (int i = 0; i < key_to_delete_index; i++){
+            bpf_map_delete_elem(connections_map_fd, &key_to_delete[i]);
+        }
         sleep(1);
     }
     return 0;

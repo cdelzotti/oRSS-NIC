@@ -7,3 +7,4 @@ void custom_dump_flows(char *dump_specs, struct ofputil_flow_stats **fses, size_
 void free_dump(struct ofputil_flow_stats *fses, size_t n_fses);
 void custom_del_flows();
 void custom_add_flow(char *flow_spec);
+void custom_del_flow(char *flow_spec);

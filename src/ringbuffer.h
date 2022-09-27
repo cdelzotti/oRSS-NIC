@@ -1,7 +1,11 @@
 #include "env.h"
 #include "bits/stdint-uintn.h"
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
-struct ringbuffer {
+struct RingBuffer {
     int pos;
     int size;
     uint64_t buffer[RING_SIZE];
@@ -11,37 +15,43 @@ struct ringbuffer {
 Parameters:
     ringbuffer* rb: pointer to ringbuffer
 */
-void ringbuffer_init(struct ringbuffer *rb);
+struct RingBuffer * ringbuffer_init();
 
 /* Free ringbuffer
 Parameters:
     ringbuffer* rb: pointer to ringbuffer
 */
-void ringbuffer_destroy(struct ringbuffer *rb);
+void ringbuffer_destroy(struct RingBuffer *rb);
 
 /* Add element to ringbuffer
 Parameters:
     ringbuffer* rb: pointer to ringbuffer
     uint64_t element: element to add
 */
-void ringbuffer_add(struct ringbuffer *rb, uint64_t value);
+void ringbuffer_add(struct RingBuffer *rb, uint64_t value);
 
 /* Get last element from ringbuffer
 Parameters:
     ringbuffer* rb: pointer to ringbuffer
 */
-uint64_t ringbuffer_get_last(struct ringbuffer *rb);
+uint64_t ringbuffer_get_last(struct RingBuffer *rb);
 
 /* Get average value of ringbuffer
 Parameters:
     ringbuffer* rb: pointer to ringbuffer
     int count: number of elements to include in the average
 */
-uint64_t ringbuffer_get_average(struct ringbuffer *rb, int count);
+uint64_t ringbuffer_get_average(struct RingBuffer *rb, int count);
 
 /* Get an estimate of the next value in the ringbuffer
 Parameters:
     ringbuffer* rb: pointer to ringbuffer
     int count : number of last elements to use for the estimation
 */
-uint64_t ringbuffer_predict_next(struct ringbuffer *rb, int count);
+uint64_t ringbuffer_predict_next(struct RingBuffer *rb, int count);
+
+/* Returns true if the ringbuffer is full with the same value
+Parameters:
+    ringbuffer* rb: pointer to ringbuffer
+*/
+uint8_t ringbuffer_is_flat(struct RingBuffer *rb);
