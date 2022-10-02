@@ -13,6 +13,11 @@
 // Size of the hashmap
 #define HASHMAP_SIZE 1024
 
+// Number of cores to use
+#define NB_CORES 24
+// The imbalance threshold to trigger a rebalancing
+#define IMBALANCE_THRESHOLD 0.1
+
 // In a situation of OVS Hardware offloading, you might want to redirect the traffic directly
 // to the opposite port, bypassing OVS detection and connection initialization. 
 #define XDP_FORWARDING 0

@@ -1,7 +1,9 @@
 #include "ringbuffer.h"
 
 struct RingBuffer *ringbuffer_init(){
-    return calloc(1, sizeof(struct RingBuffer));
+    struct RingBuffer* new_buf = calloc(1, sizeof(struct RingBuffer));
+    new_buf->assigned_core = rand() % NB_CORES; // Assign a random core to the flow
+    return new_buf;
 }
 
 void ringbuffer_destroy(struct RingBuffer *rb){

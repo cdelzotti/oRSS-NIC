@@ -84,3 +84,16 @@ struct RingBuffer *hashmap_new(struct HashMap *hashmap, struct FiveTuple *key) {
     hashmap_insert(hashmap, *key, value);
     return value;
 }
+
+uint8_t hashmap_get_next(struct HashMap *hashmap, struct FiveTuple *current_key, struct FiveTuple *next_key, struct RingBuffer **next_value) {
+    int index = hashmap_contains(hashmap, current_key);
+    for (int i = index + 1; i < HASHMAP_SIZE; i++) {
+        if (hashmap->map[i].valid) {
+            *next_key = hashmap->map[i].key;
+            *next_value = hashmap->map[i].value;
+            return 1;
+    }
+    *next_key = (struct FiveTuple){0};
+    *next_value = (void *)0;
+    return 0;
+}

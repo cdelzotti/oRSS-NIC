@@ -6,8 +6,9 @@
 #include <string.h>
 
 struct RingBuffer {
-    int pos;
-    int size;
+    uint8_t assigned_core; // Each ringbuffer corresponds to a flow, and each flow is assigned to a core
+    int pos; // The position of the current element
+    int size; // The number of elements in the buffer
     uint64_t buffer[RING_SIZE];
 };
 
