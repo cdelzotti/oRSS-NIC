@@ -4,6 +4,3 @@
 [submodule "ovs"]
 	path = ovs
 	url = https://github.com/openvswitch/ovs.git
-[submodule "OVS-Mellanox"]
-	path = OVS-Mellanox
-	url = https://github.com/Mellanox/OVS.git
