@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#include "env.h"
-
 #include <config.h>
 #include <ctype.h>
 #include <errno.h>
@@ -1596,14 +1594,6 @@ ofctl_dump_flows(struct ovs_cmdl_context *ctx)
     }
 }
 
-
-void free_dump(struct ofputil_flow_stats *fses, size_t n_fses) {
-    for (size_t i = 0; i < n_fses; i++) {
-        free(CONST_CAST(struct ofpact *, fses[i].ofpacts));
-    }
-    free(fses);
-}
-
 static void
 ofctl_dump_aggregate(struct ovs_cmdl_context *ctx)
 {
@@ -1750,6 +1740,7 @@ ofctl_flow_mod__(const char *remote, struct ofputil_flow_mod *fms,
 {
     enum ofputil_protocol protocol;
     struct vconn *vconn;
+    struct ds ds = DS_EMPTY_INITIALIZER;
     size_t i;
 
     if (bundle) {
@@ -1761,11 +1752,23 @@ ofctl_flow_mod__(const char *remote, struct ofputil_flow_mod *fms,
 
     for (i = 0; i < n_fms; i++) {
         struct ofputil_flow_mod *fm = &fms[i];
+        struct ofpbuf *buf = ofputil_encode_flow_mod(fm, protocol);
 
-        transact_noreply(vconn, ofputil_encode_flow_mod(fm, protocol));
+        /* If user has opted for verbosity of 5 or more dump the
+         * constructed OpenFlow packet in hex format */
+        if (verbosity == 5) {
+            ds_put_hex_dump(&ds, buf->data, buf->size, 0, true);
+        } else if (verbosity > 5) {
+            ds_put_hex(&ds, buf->data, buf->size);
+            ds_put_char(&ds, '\n');
+        }
+        transact_noreply(vconn, buf);
         free(CONST_CAST(struct ofpact *, fm->ofpacts));
         minimatch_destroy(&fm->match);
     }
+    fputs(ds_cstr(&ds), stdout);
+    ds_destroy(&ds);
+
     vconn_close(vconn);
 }
 
@@ -2249,6 +2252,7 @@ ofctl_monitor(struct ovs_cmdl_context *ctx)
 {
     struct vconn *vconn;
     int i;
+    enum ofputil_protocol protocol;
     enum ofputil_protocol usable_protocols;
 
     /* If the user wants the invalid_ttl_to_controller feature, limit the
@@ -2273,7 +2277,7 @@ ofctl_monitor(struct ovs_cmdl_context *ctx)
         }
     }
 
-    open_vconn(ctx->argv[1], &vconn);
+    protocol = open_vconn(ctx->argv[1], &vconn);
     bool resume_continuations = false;
     for (i = 2; i < ctx->argc; i++) {
         const char *arg = ctx->argv[i];
@@ -2308,7 +2312,13 @@ ofctl_monitor(struct ovs_cmdl_context *ctx)
             }
 
             msg = ofpbuf_new(0);
-            ofputil_append_flow_monitor_request(&fmr, msg);
+            ofputil_append_flow_monitor_request(&fmr, msg, protocol);
+
+            if (verbosity) {
+                ofpmsg_update_length(msg);
+                ofp_print(stdout, msg->data, msg->size, NULL,
+                          NULL, verbosity + 2);
+            }
             dump_transaction(vconn, msg);
             fflush(stdout);
         } else if (!strcmp(arg, "resume")) {
@@ -5120,6 +5130,15 @@ static const struct ovs_cmdl_command *get_all_commands(void)
 
 // Custom functions to avoid executing shell commands
 
+#include "env.h"
+
+void free_dump(struct ofputil_flow_stats *fses, size_t n_fses) {
+    for (size_t i = 0; i < n_fses; i++) {
+        free(CONST_CAST(struct ofpact *, fses[i].ofpacts));
+    }
+    free(fses);
+}
+
 void custom_del_flow(char *flow_spec)
 {
     struct ovs_cmdl_context ctx;
@@ -5182,3 +5201,4 @@ void custom_dump_flows(char *dump_specs, struct ofputil_flow_stats **fses, size_
 
     vconn_close(vconn);
 }
+

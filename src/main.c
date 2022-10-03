@@ -10,7 +10,9 @@
 #include "ovs-ofctl.h"
 #include "command-line.h"
 #include "openvswitch/ofp-flow.h"
+#include "balancer.h"
 #include "hashmap.h"
+#include "ringbuffer.h"
 
 uint8_t looping = 1;
 
@@ -134,33 +136,12 @@ int user_space_prog(int connections_map_fd){
     {
         struct FiveTuple prev_key = {};
         struct FiveTuple key;
-        printf("Printing connections map:\n");
         struct FiveTuple key_to_delete[HASHMAP_SIZE];
         int key_to_delete_index = 0;
+        // Check BPF maps
         while(bpf_map_get_next_key(connections_map_fd, &prev_key, &key) == 0){
             struct ConnectionState state = {0};
             collect_map(key, connections_map_fd, &state); 
-            uint64_t packets;
-            if (state.ACK && state.SYN && state.SYNACK && !state.FIN){
-                if (state.HANDLED)
-                    printf("[ESTABLISHED] ");
-                else
-                    printf("[ESTABLISHED (new)] ");
-                packets = get_flow_stats(key.src_ip, key.dst_ip, key.src_port, key.dst_port);
-            } else if (state.FIN) {
-                printf("[TERMINATED] ");
-                del_flow(RX_SWITCH_IFINDEX,TX_SWITCH_IFINDEX, key.proto, key.src_ip, key.dst_ip, key.src_port, key.dst_port);
-                key_to_delete[key_to_delete_index] = key;
-                key_to_delete_index++;
-                packets = 0;
-            } else {
-                printf("[HANDSHAKING] ");
-                packets = 0;
-            }
-            printf("%d.%d.%d.%d:%u -> %d.%d.%d.%d:%u ", 
-                key.src_ip & 0xFF, (key.src_ip >> 8) & 0xFF, (key.src_ip >> 16) & 0xFF, (key.src_ip >> 24) & 0xFF, (unsigned int) key.src_port,
-                key.dst_ip & 0xFF, (key.dst_ip >> 8) & 0xFF, (key.dst_ip >> 16) & 0xFF, (key.dst_ip >> 24) & 0xFF, (unsigned int) key.dst_port);
-            printf("(%llu packets received)", packets);
             if (!state.HANDLED){
                 add_flow(RX_SWITCH_IFINDEX, TX_SWITCH_IFINDEX, key.proto, key.src_ip, key.dst_ip, key.src_port, key.dst_port);
                 // Add entry to hashmap
@@ -170,25 +151,22 @@ int user_space_prog(int connections_map_fd){
             struct RingBuffer *ring_buffer = hashmap_get(map, &key);
             if (ring_buffer){
                 uint64_t last = ringbuffer_get_last(ring_buffer);
-                ringbuffer_add(ring_buffer, packets);
+                ringbuffer_add(ring_buffer, get_flow_stats(key.src_ip, key.dst_ip, key.src_port, key.dst_port));
                 if (ringbuffer_is_flat(ring_buffer)){
-                    printf(" (flat ring buffer)");
                     // Mark the connection as terminated
                     mark_fin(key, connections_map_fd);
                     // Remove entry from hashmap
                     hashmap_remove(map, &key);
                 }
-                printf(" RB:(val:%d, last:%llu)", ring_buffer->size, last);
-            } else {
-                printf(" (no ring buffer)");
             }
-            printf("\n");
             prev_key = key;
         }
-        printf("-------------------------\n");
         for (int i = 0; i < key_to_delete_index; i++){
             bpf_map_delete_elem(connections_map_fd, &key_to_delete[i]);
         }
+        // Balance flows
+        struct Migrations migrations = {0};
+        balancer_balance(map, 8, &migrations);
         sleep(1);
     }
     return 0;

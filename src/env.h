@@ -17,9 +17,11 @@
 #define NB_CORES 24
 // The imbalance threshold to trigger a rebalancing
 #define IMBALANCE_THRESHOLD 0.1
+// The maximum number of iterations to try to rebalance the flows
+#define MAX_REBALANCE_ITERATIONS 10
 
 // In a situation of OVS Hardware offloading, you might want to redirect the traffic directly
-// to the opposite port, bypassing OVS detection and connection initialization. 
+// to the opposite port, bypassing OVS detection and connection initialization.
 #define XDP_FORWARDING 0
 
 // XDP loading mode, choose SKB mode if driver does not support native XDP

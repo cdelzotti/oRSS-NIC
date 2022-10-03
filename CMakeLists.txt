@@ -72,6 +72,7 @@ src/bpf/xdp.bpf.h
 src/load_bpf.c src/load_bpf.h
 src/ringbuffer.c src/ringbuffer.h
 src/hashmap.c src/hashmap.h 
+src/balancer.c src/balancer.h
 # ${OVS_PATH}/lib/byte-order.h 
 # ${OVS_PATH}/lib/flow.h ${OVS_PATH}/lib/flow.c 
 # ${OVS_PATH}/lib/classifier.h ${OVS_PATH}/lib/classifier.c
@@ -111,8 +112,8 @@ ${OVS_PATH}/lib/odp-util.h
 ${OVS_PATH}/lib/odp-util.c
 ${OVS_PATH}/lib/odp-execute.h 
 ${OVS_PATH}/lib/odp-execute.c
-# ${OVS_PATH}/lib/odp-execute-private.h 
-# ${OVS_PATH}/lib/odp-execute-private.c 
+${OVS_PATH}/lib/odp-execute-private.h 
+${OVS_PATH}/lib/odp-execute-private.c 
 ${OVS_PATH}/lib/aes128.c
 ${OVS_PATH}/lib/aes128.h
 ${OVS_PATH}/lib/async-append-aio.c

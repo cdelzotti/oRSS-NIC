@@ -55,7 +55,8 @@ static enum TCP_FLAGS parse_headers(struct xdp_md *ctx, struct FiveTuple *tuple)
             if (tcp->fin) {
                 bpf_printk("FIN packet detected\n");
                 return FIN;
-            } else if (tcp->syn && !tcp->ack){
+            } else 
+            if (tcp->syn && !tcp->ack){
                 bpf_printk("SYN");
                 return SYN;
             } else if (tcp->ack && tcp->syn){
@@ -126,8 +127,8 @@ int xdp_rx(struct xdp_md *ctx)
             state.SYNACK = 1;
         if (flags == ACK)
             state.ACK = 1;
-        if (flags == FIN)
-            state.FIN = 1;
+        // if (flags == FIN)
+        //     state.FIN = 1;
         update_connection_state(&tuple, &state);
     }
     return forward(&map_redir, ctx->ingress_ifindex,0);

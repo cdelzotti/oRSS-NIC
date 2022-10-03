@@ -1,3 +1,6 @@
+#ifndef RINGBUFFER_H
+#define RINGBUFFER_H
+
 #include "env.h"
 #include "bits/stdint-uintn.h"
 #include <stdlib.h>
@@ -12,7 +15,7 @@ struct RingBuffer {
     uint64_t buffer[RING_SIZE];
 };
 
-/* Initialize ringbuffer 
+/* Initialize ringbuffer
 Parameters:
     ringbuffer* rb: pointer to ringbuffer
 */
@@ -56,3 +59,5 @@ Parameters:
     ringbuffer* rb: pointer to ringbuffer
 */
 uint8_t ringbuffer_is_flat(struct RingBuffer *rb);
+
+#endif

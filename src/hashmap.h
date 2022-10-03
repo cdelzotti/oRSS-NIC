@@ -1,3 +1,6 @@
+#ifndef HASHMAP_H
+#define HASHMAP_H
+
 #include "ringbuffer.h"
 #include "bpf/xdp.bpf.h"
 #include "env.h"
@@ -73,3 +76,5 @@ struct RingBuffer *hashmap_new(struct HashMap *hashmap, struct FiveTuple *key);
         0 if a next key couldn't.
 */
 uint8_t hashmap_get_next(struct HashMap *hashmap, struct FiveTuple *current_key, struct FiveTuple *next_key, struct RingBuffer **next_value);
+
+#endif

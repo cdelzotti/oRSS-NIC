@@ -2,7 +2,8 @@
 
 struct RingBuffer *ringbuffer_init(){
     struct RingBuffer* new_buf = calloc(1, sizeof(struct RingBuffer));
-    new_buf->assigned_core = rand() % NB_CORES; // Assign a random core to the flow
+    // new_buf->assigned_core = rand() % NB_CORES; // Assign a random core to the flow
+    new_buf->assigned_core = 0;
     return new_buf;
 }
 

@@ -1,8 +1,12 @@
+#ifndef BALANCER_H
+#define BALANCER_H
+
 #include "env.h"
-#include "ringbuffer.h"
 #include "hashmap.h"
-#include "src/bpf/xdp.bpf.h"
 #include <math.h>
+#include "bpf/xdp.bpf.h"
+#include <stdlib.h>
+
 
 struct CoreLoad {
     uint8_t core_idx;
@@ -17,6 +21,16 @@ struct Repartition {
     struct CoreLoad *core_load;
 };
 
+struct Migration {
+    struct FiveTuple key;
+    int destination_core;
+};
+
+struct Migrations {
+    int nb_migrations;
+    struct Migration migrations[MAX_REBALANCE_ITERATIONS];
+};
+
 /*
     Compute the load of each core and return a representation of the load within the struct Repartition
     Parameters:
@@ -26,15 +40,16 @@ struct Repartition {
 */
 void balancer_compute_repartition(struct Repartition *repartition, struct HashMap *hashmap, uint8_t nbCores);
 
-
 /*
     Balance the flows between the cores
     Parameters:
         hashmap: hashmap containing the flows
 */
-void balancer_balance(struct HashMap *flows, int nbCores);
+void balancer_balance(struct HashMap *hashmap, int nbCores, struct Migrations *migrations);
 
 /*
     Free the memory allocated for the repartition
 */
 void balancer_free(struct Repartition *repartition);
+
+#endif

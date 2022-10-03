@@ -96,4 +96,5 @@ uint8_t hashmap_get_next(struct HashMap *hashmap, struct FiveTuple *current_key,
     *next_key = (struct FiveTuple){0};
     *next_value = (void *)0;
     return 0;
+    }
 }
