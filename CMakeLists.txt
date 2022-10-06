@@ -112,8 +112,8 @@ ${OVS_PATH}/lib/odp-util.h
 ${OVS_PATH}/lib/odp-util.c
 ${OVS_PATH}/lib/odp-execute.h 
 ${OVS_PATH}/lib/odp-execute.c
-${OVS_PATH}/lib/odp-execute-private.h 
-${OVS_PATH}/lib/odp-execute-private.c 
+# ${OVS_PATH}/lib/odp-execute-private.h 
+# ${OVS_PATH}/lib/odp-execute-private.c 
 ${OVS_PATH}/lib/aes128.c
 ${OVS_PATH}/lib/aes128.h
 ${OVS_PATH}/lib/async-append-aio.c

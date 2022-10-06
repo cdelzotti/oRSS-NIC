@@ -14,7 +14,7 @@
 #define HASHMAP_SIZE 1024
 
 // Number of cores to use
-#define NB_CORES 24
+#define NB_CORES 8
 // The imbalance threshold to trigger a rebalancing
 #define IMBALANCE_THRESHOLD 0.1
 // The maximum number of iterations to try to rebalance the flows

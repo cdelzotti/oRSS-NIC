@@ -20,10 +20,16 @@ uint8_t five_tuple_equals(struct FiveTuple *a, struct FiveTuple *b) {
 }
 
 int hashmap_contains(struct HashMap *hashmap, struct FiveTuple *key) {
-    for (int i = 0; i < hashmap->size; i++) {
-        if (five_tuple_equals(&hashmap->map[i].key, key) && hashmap->map[i].valid) {
-            return i;
+    int iterator = 0;
+    int item_count = 0;
+    while (item_count < hashmap->size) {
+        if (hashmap->map[iterator].valid) {
+            if (five_tuple_equals(&hashmap->map[iterator].key, key)) {
+                return iterator;
+            }
+            item_count++;
         }
+        iterator++;
     }
     return -1;
 }

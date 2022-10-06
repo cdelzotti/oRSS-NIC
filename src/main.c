@@ -16,32 +16,31 @@
 
 uint8_t looping = 1;
 
-void add_flow(int in_port, int out_port, int proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port){
+void add_flow(int in_port, int out_processor, int proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port){
     char str[150];
     char src_ip_str[15];
     char dst_ip_str[15];
     sprintf(src_ip_str, "%d.%d.%d.%d", src_ip & 0xFF, (src_ip >> 8) & 0xFF, (src_ip >> 16) & 0xFF, (src_ip >> 24) & 0xFF);
     sprintf(dst_ip_str, "%d.%d.%d.%d", dst_ip & 0xFF, (dst_ip >> 8) & 0xFF, (dst_ip >> 16) & 0xFF, (dst_ip >> 24) & 0xFF);
-    sprintf(str, "in_port=%d,ip,dl_type=0x0800,nw_proto=%d,nw_src=%s,nw_dst=%s,tp_src=%u,tp_dst=%u,priority=1,actions=output:%d", 
+    sprintf(str, "in_port=%d,ip,dl_type=0x0800,nw_proto=%d,nw_src=%s,nw_dst=%s,tp_src=%u,tp_dst=%u,priority=1,actions=resubmit(,%d)", 
         in_port,
         proto,
         src_ip_str,
         dst_ip_str,
         src_port,
         dst_port,
-        out_port);
+        out_processor + 1);
     custom_add_flow(str);
 }
 
-void del_flow(int in_port, int out_port, int proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port){
+void del_flow(int in_port, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port){
     char str[150];
     char src_ip_str[15];
     char dst_ip_str[15];
     sprintf(src_ip_str, "%d.%d.%d.%d", src_ip & 0xFF, (src_ip >> 8) & 0xFF, (src_ip >> 16) & 0xFF, (src_ip >> 24) & 0xFF);
     sprintf(dst_ip_str, "%d.%d.%d.%d", dst_ip & 0xFF, (dst_ip >> 8) & 0xFF, (dst_ip >> 16) & 0xFF, (dst_ip >> 24) & 0xFF);
-    sprintf(str, "in_port=%d,ip,dl_type=0x0800,nw_proto=%d,nw_src=%s,nw_dst=%s,tp_src=%u,tp_dst=%u", 
+    sprintf(str, "table=0,tcp,in_port=%d,nw_src=%s,nw_dst=%s,tp_src=%u,tp_dst=%u", 
         in_port,
-        proto,
         src_ip_str,
         dst_ip_str,
         src_port,
@@ -49,12 +48,20 @@ void del_flow(int in_port, int out_port, int proto, uint32_t src_ip, uint32_t ds
     custom_del_flow(str);
 }
 
-void init_flows(){
-    char str[50];
+void init_flows(int nbCores){
+    char str[100];
+    // Allow ARP
     custom_add_flow("arp,actions=FLOOD");
-    sprintf(str, "ip,in_port=%d,priority=0,actions=output:%d", RX_SWITCH_IFINDEX, TX_SWITCH_IFINDEX);
-    custom_add_flow(str);
+    // Allow host to send packets without check
     sprintf(str, "ip,in_port=%d,priority=0,actions=output:%d", TX_SWITCH_IFINDEX, RX_SWITCH_IFINDEX);
+    custom_add_flow(str);
+    // Set VLAN pushing rules
+    for(int i = 0; i < nbCores + 1; i++){
+        sprintf(str, "ip,in_port=%d,table=%d,priority=0,actions=mod_vlan_vid:%d,output:%d", RX_SWITCH_IFINDEX, i+1, i, TX_SWITCH_IFINDEX);
+        custom_add_flow(str);
+    }
+    // On receiving side, need to push a vlan tag
+    sprintf(str, "ip,in_port=%d,priority=0,actions=resubmit(,1)", RX_SWITCH_IFINDEX);
     custom_add_flow(str);
 }
 
@@ -126,11 +133,26 @@ void mark_fin(struct FiveTuple key, int map_fd){
     bpf_map_update_elem(map_fd, &key, &state, BPF_ANY);
 }
 
+void apply_migrations(struct Migrations *migrations){
+    char str[100];
+    for (int i = 0; i < migrations->nb_migrations; i++){
+        struct Migration migration = migrations->migrations[i];
+        sprintf(str, "table=0,tcp,in_port=%d,nw_src=%d.%d.%d.%d,nw_dst=%d.%d.%d.%d,tp_src=%u,tp_dst=%u,actions=resubmit(,%d)",
+            RX_SWITCH_IFINDEX,
+            migration.key.src_ip & 0xFF, (migration.key.src_ip >> 8) & 0xFF, (migration.key.src_ip >> 16) & 0xFF, (migration.key.src_ip >> 24) & 0xFF,
+            migration.key.dst_ip & 0xFF, (migration.key.dst_ip >> 8) & 0xFF, (migration.key.dst_ip >> 16) & 0xFF, (migration.key.dst_ip >> 24) & 0xFF,
+            migration.key.src_port,
+            migration.key.dst_port,
+            migration.destination_core + 1);
+        custom_mod_flow(str);
+    }
+}
+
 int user_space_prog(int connections_map_fd){
     // Contains the user space logic
     // Typically, should be a forever looping program
     // First, allow ARP flooding
-    init_flows();
+    init_flows(NB_CORES);
     struct HashMap *map = hashmap_init();
     while (looping)
     {
@@ -141,18 +163,24 @@ int user_space_prog(int connections_map_fd){
         // Check BPF maps
         while(bpf_map_get_next_key(connections_map_fd, &prev_key, &key) == 0){
             struct ConnectionState state = {0};
+            struct RingBuffer *ring_buffer = hashmap_get(map, &key);
             collect_map(key, connections_map_fd, &state); 
             if (!state.HANDLED){
-                add_flow(RX_SWITCH_IFINDEX, TX_SWITCH_IFINDEX, key.proto, key.src_ip, key.dst_ip, key.src_port, key.dst_port);
                 // Add entry to hashmap
                 hashmap_new(map, &key);
+                ring_buffer = hashmap_get(map, &key);
+                add_flow(RX_SWITCH_IFINDEX, ring_buffer->assigned_core, key.proto, key.src_ip, key.dst_ip, key.src_port, key.dst_port);
                 mark_handled(key, connections_map_fd);
             }
-            struct RingBuffer *ring_buffer = hashmap_get(map, &key);
             if (ring_buffer){
                 uint64_t last = ringbuffer_get_last(ring_buffer);
                 ringbuffer_add(ring_buffer, get_flow_stats(key.src_ip, key.dst_ip, key.src_port, key.dst_port));
                 if (ringbuffer_is_flat(ring_buffer)){
+                    // Remove flow
+                    del_flow(RX_SWITCH_IFINDEX, key.src_ip, key.dst_ip, key.src_port, key.dst_port);
+                    // Add key to delete
+                    key_to_delete[key_to_delete_index] = key;
+                    key_to_delete_index++;
                     // Mark the connection as terminated
                     mark_fin(key, connections_map_fd);
                     // Remove entry from hashmap
@@ -166,7 +194,8 @@ int user_space_prog(int connections_map_fd){
         }
         // Balance flows
         struct Migrations migrations = {0};
-        balancer_balance(map, 8, &migrations);
+        balancer_balance(map, NB_CORES, &migrations);
+        apply_migrations(&migrations);
         sleep(1);
     }
     return 0;

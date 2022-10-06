@@ -140,7 +140,7 @@ void balancer_balance(struct HashMap *hashmap, int nbCores, struct Migrations *m
         long double largest_imbalance = (long double) biggestLoad / (long double) averageLoad;
         long double smallest_imbalance = (long double) smallestLoad / (long double) averageLoad;
         if (largest_imbalance > 1 + IMBALANCE_THRESHOLD || smallest_imbalance < 1 - IMBALANCE_THRESHOLD && averageLoad > 0) {
-            printf("Rebalancing: largest_imbalance = %Lf, smallest_imbalance = %Lf, average_load = %lu\n", largest_imbalance, smallest_imbalance, averageLoad);
+            // printf("Rebalancing: largest_imbalance = %Lf, smallest_imbalance = %Lf, average_load = %lu\n", largest_imbalance, smallest_imbalance, averageLoad);
             // There are too much flows on the core with the biggest load
             migrations->migrations[migrations->nb_migrations] = balancer_migrate(&repartition.core_load[biggestLoad_idx], &repartition.core_load[smallestLoad_idx]);
             migrations->nb_migrations++;
