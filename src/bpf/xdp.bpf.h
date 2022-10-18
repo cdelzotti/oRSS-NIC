@@ -5,6 +5,8 @@
 
 #define ETH_P_IP 0x0800
 
+#define BPF_ANY 0
+
 struct FiveTuple {
   uint32_t src_ip; /**4 bytes source IP address */
   uint32_t dst_ip; /** 4 bytes destination IP address */
@@ -35,14 +37,14 @@ enum TCP_FLAGS {
 
 // For some reason, the kernel might not have the xdp_md struct defined
 // in the vmlinux.h file. In this case, just define it here.
-// struct xdp_md {
-// 	__u32 data;
-// 	__u32 data_end;
-// 	__u32 data_meta;
-// 	/* Below access go through struct xdp_rxq_info */
-// 	__u32 ingress_ifindex; /* rxq->dev->ifindex */
-// 	__u32 rx_queue_index;  /* rxq->queue_index  */
-// };
+ struct xdp_md_copy {
+ 	uint32_t data;
+ 	uint32_t data_end;
+ 	uint32_t data_meta;
+ 	/* Below access go through struct xdp_rxq_info */
+ 	uint32_t ingress_ifindex; /* rxq->dev->ifindex */
+ 	uint32_t rx_queue_index;  /* rxq->queue_index  */
+ };
 
 
 #endif

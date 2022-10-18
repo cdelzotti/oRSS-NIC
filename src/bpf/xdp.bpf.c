@@ -32,7 +32,7 @@ static inline int forward(void* map, u32 key, u64 flags){
     return XDP_PASS;
 }
 
-static enum TCP_FLAGS parse_headers(struct xdp_md *ctx, struct FiveTuple *tuple){
+static enum TCP_FLAGS parse_headers(struct xdp_md_copy *ctx, struct FiveTuple *tuple){
     void *data_end = (void *)(long)ctx->data_end;
     void *data = (void *)(long)ctx->data;
     struct ethhdr *eth = data;
@@ -108,7 +108,7 @@ static inline void swap_tuple(struct FiveTuple *tuple){
 }
 
 SEC("xdp")
-int xdp_rx(struct xdp_md *ctx)
+int xdp_rx(struct xdp_md_copy *ctx)
 {
     struct FiveTuple tuple = {0};
     enum TCP_FLAGS flags = parse_headers(ctx, &tuple);
@@ -135,7 +135,7 @@ int xdp_rx(struct xdp_md *ctx)
 }
 
 SEC("xdp")
-int xdp_tx(struct xdp_md *ctx)
+int xdp_tx(struct xdp_md_copy *ctx)
 {
     struct FiveTuple tuple = {0};
     enum TCP_FLAGS flags = parse_headers(ctx, &tuple);

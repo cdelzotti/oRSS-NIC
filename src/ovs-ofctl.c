@@ -161,26 +161,6 @@ static const struct ovs_cmdl_command *get_all_commands(void);
 OVS_NO_RETURN static void usage(void);
 static void parse_options(int argc, char *argv[]);
 
-// int
-// main(int argc, char *argv[])
-// {
-//     struct ovs_cmdl_context ctx = { .argc = 0, };
-//     set_program_name(argv[0]);
-//     service_start(&argc, &argv);
-//     parse_options(argc, argv);
-//     fatal_ignore_sigpipe();
-//     ctx.argc = argc - optind;
-//     ctx.argv = argv + optind;
-
-//     daemon_become_new_user(false);
-//     if (read_only) {
-//         ovs_cmdl_run_command_read_only(&ctx, get_all_commands());
-//     } else {
-//         ovs_cmdl_run_command(&ctx, get_all_commands());
-//     }
-//     return 0;
-// }
-
 static void
 add_sort_criterion(enum sort_order order, const char *field)
 {
@@ -730,12 +710,12 @@ static void
 bundle_print_errors(struct ovs_list *errors, struct ovs_list *requests,
                     const char *vconn_name)
 {
-    struct ofpbuf *error;
+    struct ofpbuf *error, *next;
     struct ofpbuf *bmsg;
 
     INIT_CONTAINER(bmsg, requests, list_node);
 
-    LIST_FOR_EACH_SAFE (error, list_node, errors) {
+    LIST_FOR_EACH_SAFE (error, next, list_node, errors) {
         const struct ofp_header *error_oh = error->data;
         ovs_be32 error_xid = error_oh->xid;
         enum ofperr ofperr;
@@ -5196,4 +5176,3 @@ void custom_dump_flows(char *dump_specs, struct ofputil_flow_stats **fses, size_
 
     vconn_close(vconn);
 }
-

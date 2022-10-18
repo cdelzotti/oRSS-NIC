@@ -1,79 +1,3 @@
-# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
-
-cmake_minimum_required(VERSION 3.16)
-project(oRSS)
-
-# Tell cmake where to find BpfObject module
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake)
-
-set(OVS_PATH ovs)
-
-# Build vendored libbpf
-include(ExternalProject)
-ExternalProject_Add(libbpf
-        PREFIX libbpf
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libbpf/src
-        CONFIGURE_COMMAND ""
-        BUILD_COMMAND make
-        BUILD_STATIC_ONLY=1
-        OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf
-        DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf
-        INCLUDEDIR=
-        LIBDIR=
-        UAPIDIR=
-        install
-        BUILD_IN_SOURCE TRUE
-        INSTALL_COMMAND ""
-        STEP_TARGETS build
-        )
-
-ExternalProject_Add(ovs
-        PREFIX ovs
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${OVS_PATH}
-        CONFIGURE_COMMAND "./configure"
-        BUILD_COMMAND make
-        BUILD_STATIC_ONLY=1
-        OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/${OVS_PATH}/ovs
-        DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/${OVS_PATH}
-        INCLUDEDIR=
-        LIBDIR=
-        UAPIDIR=
-        install
-        BUILD_IN_SOURCE TRUE
-        INSTALL_COMMAND ":"
-        STEP_TARGETS build
-        )
-
-# add_library(ovs STATIC IMPORTED)
-# target_link_libraries(ovs INTERFACE ${OVS_PATH}/lib/)
-
-# Set BpfObject input parameters -- note this is usually not necessary unless
-# you're in a highly vendored environment (like libbpf-bootstrap)
-set(BPFOBJECT_BPFTOOL_EXE bpftool)
-set(BPFOBJECT_VMLINUX_H ${CMAKE_CURRENT_SOURCE_DIR}/vmlinux/vmlinux.h)
-set(LIBBPF_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libbpf)
-set(LIBBPF_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf.a)
-set(CMAKE_EXE_LINKER_FLAGS)
-
-find_package(BpfObject REQUIRED)
-find_package(PkgConfig REQUIRED)
-# Check DPDK
-pkg_check_modules(DPDK REQUIRED IMPORTED_TARGET libdpdk)
-
-bpf_object(xdp src/bpf/xdp.bpf.c)
-add_dependencies(xdp_skel libbpf-build)
-add_compile_definitions(DPDK_NETDEV)
-
-add_compile_options(-fpic -ggdb)
-add_executable(orss 
-src/main.c 
-src/env.h 
-src/bpf/xdp.bpf.h 
-src/load_bpf.c src/load_bpf.h
-src/ringbuffer.c src/ringbuffer.h
-src/hashmap.c src/hashmap.h 
-src/balancer.c src/balancer.h
-
 /home/ubuntu/oRSS-NIC/ovs/lib/entropy.h
 /home/ubuntu/oRSS-NIC/ovs/lib/entropy.c
 /home/ubuntu/oRSS-NIC/ovs/lib/reconnect.h
@@ -134,6 +58,8 @@ src/balancer.c src/balancer.h
 /home/ubuntu/oRSS-NIC/ovs/lib/conntrack-tp.h
 /home/ubuntu/oRSS-NIC/ovs/lib/coverage.c
 /home/ubuntu/oRSS-NIC/ovs/lib/coverage.h
+/home/ubuntu/oRSS-NIC/ovs/lib/cpu.c
+/home/ubuntu/oRSS-NIC/ovs/lib/cpu.h
 /home/ubuntu/oRSS-NIC/ovs/lib/crc32c.c
 /home/ubuntu/oRSS-NIC/ovs/lib/crc32c.h
 /home/ubuntu/oRSS-NIC/ovs/lib/csum.c
@@ -149,7 +75,6 @@ src/balancer.c src/balancer.h
 /home/ubuntu/oRSS-NIC/ovs/lib/dhcp.h
 /home/ubuntu/oRSS-NIC/ovs/lib/dhparams.c
 /home/ubuntu/oRSS-NIC/ovs/lib/dhparams.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dirs.c
 /home/ubuntu/oRSS-NIC/ovs/lib/dirs.h
 /home/ubuntu/oRSS-NIC/ovs/lib/dns-resolve.c
 /home/ubuntu/oRSS-NIC/ovs/lib/dns-resolve.h
@@ -163,6 +88,7 @@ src/balancer.c src/balancer.h
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif.c
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif.h
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev.c
+/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-extract-study.c
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev.h
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-lookup-autovalidator.c
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-lookup.c
@@ -170,7 +96,16 @@ src/balancer.c src/balancer.h
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-lookup.h
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-perf.c
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-perf.h
+/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-private-dfc.c
+/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-private-dfc.h
+/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-private-dpcls.h
+/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-private-dpif.c
+/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-private-dpif.h
+/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-private-extract.c
+/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-private-extract.h
+/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-private-flow.h
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-private.h
+/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-private-thread.h
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif-netlink.c
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif-netlink.h
 /home/ubuntu/oRSS-NIC/ovs/lib/dpif-netlink-rtnl.c
@@ -197,6 +132,8 @@ src/balancer.c src/balancer.h
 /home/ubuntu/oRSS-NIC/ovs/lib/hmap.c
 /home/ubuntu/oRSS-NIC/ovs/lib/hmapx.c
 /home/ubuntu/oRSS-NIC/ovs/lib/hmapx.h
+/home/ubuntu/oRSS-NIC/ovs/lib/id-fpool.c
+/home/ubuntu/oRSS-NIC/ovs/lib/id-fpool.h
 /home/ubuntu/oRSS-NIC/ovs/lib/id-pool.c
 /home/ubuntu/oRSS-NIC/ovs/lib/id-pool.h
 /home/ubuntu/oRSS-NIC/ovs/lib/if-notifier.c
@@ -222,6 +159,9 @@ src/balancer.c src/balancer.h
 /home/ubuntu/oRSS-NIC/ovs/lib/memory.c
 /home/ubuntu/oRSS-NIC/ovs/lib/memory.h
 /home/ubuntu/oRSS-NIC/ovs/lib/meta-flow.c
+/home/ubuntu/oRSS-NIC/ovs/lib/mov-avg.h
+/home/ubuntu/oRSS-NIC/ovs/lib/mpsc-queue.c
+/home/ubuntu/oRSS-NIC/ovs/lib/mpsc-queue.h
 /home/ubuntu/oRSS-NIC/ovs/lib/multipath.c
 /home/ubuntu/oRSS-NIC/ovs/lib/multipath.h
 /home/ubuntu/oRSS-NIC/ovs/lib/namemap.c
@@ -285,8 +225,6 @@ src/balancer.c src/balancer.h
 /home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-map-op.h
 /home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-parser.c
 /home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-parser.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-server-idl.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-server-idl.h
 /home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-session.c
 /home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-session.h
 /home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-set-op.c
@@ -299,6 +237,8 @@ src/balancer.c src/balancer.h
 /home/ubuntu/oRSS-NIC/ovs/lib/ovs-numa.h
 /home/ubuntu/oRSS-NIC/ovs/lib/ovs-rcu.c
 /home/ubuntu/oRSS-NIC/ovs/lib/ovs-rcu.h
+/home/ubuntu/oRSS-NIC/ovs/lib/ovs-replay.c
+/home/ubuntu/oRSS-NIC/ovs/lib/ovs-replay.h
 /home/ubuntu/oRSS-NIC/ovs/lib/ovs-router.c
 /home/ubuntu/oRSS-NIC/ovs/lib/ovs-router.h
 /home/ubuntu/oRSS-NIC/ovs/lib/ovs-thread.c
@@ -348,7 +288,6 @@ src/balancer.c src/balancer.h
 /home/ubuntu/oRSS-NIC/ovs/lib/sset.c
 /home/ubuntu/oRSS-NIC/ovs/lib/sset.h
 /home/ubuntu/oRSS-NIC/ovs/lib/stdio.c
-/home/ubuntu/oRSS-NIC/ovs/lib/stdio.h
 /home/ubuntu/oRSS-NIC/ovs/lib/stdio.h.in
 /home/ubuntu/oRSS-NIC/ovs/lib/stopwatch.c
 /home/ubuntu/oRSS-NIC/ovs/lib/stopwatch.h
@@ -359,12 +298,12 @@ src/balancer.c src/balancer.h
 /home/ubuntu/oRSS-NIC/ovs/lib/stream-fd.h
 /home/ubuntu/oRSS-NIC/ovs/lib/stream.h
 /home/ubuntu/oRSS-NIC/ovs/lib/stream-provider.h
+/home/ubuntu/oRSS-NIC/ovs/lib/stream-replay.c
 /home/ubuntu/oRSS-NIC/ovs/lib/stream-ssl.c
 /home/ubuntu/oRSS-NIC/ovs/lib/stream-ssl.h
 /home/ubuntu/oRSS-NIC/ovs/lib/stream-tcp.c
 /home/ubuntu/oRSS-NIC/ovs/lib/stream-unix.c
 /home/ubuntu/oRSS-NIC/ovs/lib/string.c
-/home/ubuntu/oRSS-NIC/ovs/lib/string.h
 /home/ubuntu/oRSS-NIC/ovs/lib/string.h.in
 /home/ubuntu/oRSS-NIC/ovs/lib/strsep.c
 /home/ubuntu/oRSS-NIC/ovs/lib/svec.c
@@ -411,8 +350,6 @@ src/balancer.c src/balancer.h
 /home/ubuntu/oRSS-NIC/ovs/lib/vlan-bitmap.h
 /home/ubuntu/oRSS-NIC/ovs/lib/vl-mff-map.h
 /home/ubuntu/oRSS-NIC/ovs/lib/vlog.c
-/home/ubuntu/oRSS-NIC/ovs/lib/vswitch-idl.c
-/home/ubuntu/oRSS-NIC/ovs/lib/vswitch-idl.h
 /home/ubuntu/oRSS-NIC/ovs/lib/rstp.h
 /home/ubuntu/oRSS-NIC/ovs/lib/rstp.c
 /home/ubuntu/oRSS-NIC/ovs/lib/route-table.h
@@ -532,11 +469,3 @@ src/balancer.c src/balancer.h
 /home/ubuntu/oRSS-NIC/ovs/lib/rconn.c
 /home/ubuntu/oRSS-NIC/ovs/lib/jsonrpc.h
 /home/ubuntu/oRSS-NIC/ovs/lib/jsonrpc.c
-
-src/ovs-ofctl.c)
-# add_executable(orss src/main.c src/env.h src/bpf/xdp.bpf.h src/load_bpf.c src/load_bpf.h src/ovs_utils.h src/ovs_utils.c)
-target_include_directories(orss PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ovs)
-target_include_directories(orss PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${OVS_PATH}/ofproto)
-target_include_directories(orss PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${OVS_PATH}/include)
-target_include_directories(orss PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ovs/lib)
-target_link_libraries(orss xdp_skel ssl crypto atomic m unwind cap-ng unbound PkgConfig::DPDK pthread rt)
