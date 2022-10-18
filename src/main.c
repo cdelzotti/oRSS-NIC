@@ -16,13 +16,13 @@
 
 uint8_t looping = 1;
 
-void add_flow(int in_port, int out_processor, int proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port){
+void add_flow(int in_port, int out_processor, uint8_t proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port){
     char str[150];
     char src_ip_str[15];
     char dst_ip_str[15];
     sprintf(src_ip_str, "%d.%d.%d.%d", src_ip & 0xFF, (src_ip >> 8) & 0xFF, (src_ip >> 16) & 0xFF, (src_ip >> 24) & 0xFF);
     sprintf(dst_ip_str, "%d.%d.%d.%d", dst_ip & 0xFF, (dst_ip >> 8) & 0xFF, (dst_ip >> 16) & 0xFF, (dst_ip >> 24) & 0xFF);
-    sprintf(str, "in_port=%d,ip,dl_type=0x0800,nw_proto=%d,nw_src=%s,nw_dst=%s,tp_src=%u,tp_dst=%u,priority=1,actions=resubmit(,%d)", 
+    sprintf(str, "in_port=%d,ip,dl_type=0x0800,nw_proto=%u,nw_src=%s,nw_dst=%s,tp_src=%u,tp_dst=%u,priority=1,actions=resubmit(,%d)", 
         in_port,
         proto,
         src_ip_str,
@@ -33,13 +33,15 @@ void add_flow(int in_port, int out_processor, int proto, uint32_t src_ip, uint32
     custom_add_flow(str);
 }
 
-void del_flow(int in_port, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port){
+void del_flow(int in_port, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port, uint8_t proto){
     char str[150];
     char src_ip_str[15];
     char dst_ip_str[15];
+    char proto_str[3];
     sprintf(src_ip_str, "%d.%d.%d.%d", src_ip & 0xFF, (src_ip >> 8) & 0xFF, (src_ip >> 16) & 0xFF, (src_ip >> 24) & 0xFF);
     sprintf(dst_ip_str, "%d.%d.%d.%d", dst_ip & 0xFF, (dst_ip >> 8) & 0xFF, (dst_ip >> 16) & 0xFF, (dst_ip >> 24) & 0xFF);
-    sprintf(str, "table=0,tcp,in_port=%d,nw_src=%s,nw_dst=%s,tp_src=%u,tp_dst=%u", 
+    sprintf(str, "table=0,nw_proto=%u,in_port=%d,nw_src=%s,nw_dst=%s,tp_src=%u,tp_dst=%u", 
+        proto,
         in_port,
         src_ip_str,
         dst_ip_str,
@@ -69,11 +71,11 @@ void cleanup_flows(){
     custom_del_flows();
 }
 
-uint64_t get_flow_stats(uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port){
+uint64_t get_flow_stats(uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port, uint8_t proto){
     char config_spec[100];
-    sprintf(config_spec, "in_port=%d,ip,dl_type=0x0800,nw_proto=%d,nw_src=%d.%d.%d.%d,nw_dst=%d.%d.%d.%d,tp_src=%u,tp_dst=%u", 
+    sprintf(config_spec, "in_port=%d,ip,dl_type=0x0800,nw_proto=%u,nw_src=%d.%d.%d.%d,nw_dst=%d.%d.%d.%d,tp_src=%u,tp_dst=%u", 
         RX_SWITCH_IFINDEX,
-        6,
+        proto,
         src_ip & 0xFF, (src_ip >> 8) & 0xFF, (src_ip >> 16) & 0xFF, (src_ip >> 24) & 0xFF,
         dst_ip & 0xFF, (dst_ip >> 8) & 0xFF, (dst_ip >> 16) & 0xFF, (dst_ip >> 24) & 0xFF,
         src_port,
@@ -134,13 +136,14 @@ void mark_fin(struct FiveTuple key, int map_fd){
 }
 
 void apply_migrations(struct Migrations *migrations){
-    char str[100];
+    char str[125];
     for (int i = 0; i < migrations->nb_migrations; i++){
         struct Migration migration = migrations->migrations[i];
-        sprintf(str, "table=0,tcp,in_port=%d,nw_src=%d.%d.%d.%d,nw_dst=%d.%d.%d.%d,tp_src=%u,tp_dst=%u,actions=resubmit(,%d)",
+        sprintf(str, "table=0,in_port=%d,nw_src=%d.%d.%d.%d,nw_dst=%d.%d.%d.%d,nw_proto=%u,tp_src=%u,tp_dst=%u,actions=resubmit(,%d)",
             RX_SWITCH_IFINDEX,
             migration.key.src_ip & 0xFF, (migration.key.src_ip >> 8) & 0xFF, (migration.key.src_ip >> 16) & 0xFF, (migration.key.src_ip >> 24) & 0xFF,
             migration.key.dst_ip & 0xFF, (migration.key.dst_ip >> 8) & 0xFF, (migration.key.dst_ip >> 16) & 0xFF, (migration.key.dst_ip >> 24) & 0xFF,
+            migration.key.proto,
             migration.key.src_port,
             migration.key.dst_port,
             migration.destination_core + 1);
@@ -174,10 +177,10 @@ int user_space_prog(int connections_map_fd){
             }
             if (ring_buffer){
                 uint64_t last = ringbuffer_get_last(ring_buffer);
-                ringbuffer_add(ring_buffer, get_flow_stats(key.src_ip, key.dst_ip, key.src_port, key.dst_port));
+                ringbuffer_add(ring_buffer, get_flow_stats(key.src_ip, key.dst_ip, key.src_port, key.dst_port, key.proto));
                 if (ringbuffer_is_flat(ring_buffer)){
                     // Remove flow
-                    del_flow(RX_SWITCH_IFINDEX, key.src_ip, key.dst_ip, key.src_port, key.dst_port);
+                    del_flow(RX_SWITCH_IFINDEX, key.src_ip, key.dst_ip, key.src_port, key.dst_port, key.proto);
                     // Add key to delete
                     key_to_delete[key_to_delete_index] = key;
                     key_to_delete_index++;

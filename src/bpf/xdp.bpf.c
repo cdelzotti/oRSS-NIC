@@ -49,7 +49,6 @@ static enum TCP_FLAGS parse_headers(struct xdp_md *ctx, struct FiveTuple *tuple)
             struct tcphdr *tcp = data + sizeof(struct ethhdr) + sizeof(struct iphdr);
             if (data + sizeof(*ip) + sizeof(*eth) + sizeof(*tcp) > data_end)
                 return ERROR;
-        
             tuple->src_port = bpf_ntohs(tcp->source);
             tuple->dst_port = bpf_ntohs(tcp->dest);
             if (tcp->fin) {
@@ -71,9 +70,9 @@ static enum TCP_FLAGS parse_headers(struct xdp_md *ctx, struct FiveTuple *tuple)
             struct udphdr *udp = data + sizeof(struct ethhdr) + sizeof(struct iphdr);
             if (data + sizeof(*ip) + sizeof(*eth) + sizeof(*udp) > data_end)
                 return ERROR;
-            tuple->src_port = udp->source;
-            tuple->dst_port = udp->dest;
-            return NOT_TCP;
+            tuple->src_port = bpf_ntohs(udp->source);
+            tuple->dst_port = bpf_ntohs(udp->dest);
+            return UDP;
         } else {
             return NOT_TCP;
         }
@@ -117,10 +116,11 @@ int xdp_rx(struct xdp_md *ctx)
         (flags == NOT_TCP && tuple.proto != IPPROTO_UDP))
         return forward(&map_redir, ctx->ingress_ifindex,0);
     struct ConnectionState state = {0};
-    if (flags == NOT_TCP && tuple.proto == IPPROTO_UDP)
-        // Register UDP connection ?
-        {}
-    else {
+    if (flags == UDP){
+        state.SYN = 1;
+        state.SYNACK = 1;
+        state.ACK = 1;
+    } else {
         if (flags == SYN)
             state.SYN = 1;
         if (flags == SYNACK)
@@ -129,8 +129,8 @@ int xdp_rx(struct xdp_md *ctx)
             state.ACK = 1;
         // if (flags == FIN)
         //     state.FIN = 1;
-        update_connection_state(&tuple, &state);
     }
+    update_connection_state(&tuple, &state);
     return forward(&map_redir, ctx->ingress_ifindex,0);
 }
 
@@ -146,10 +146,11 @@ int xdp_tx(struct xdp_md *ctx)
     struct ConnectionState state = {0};
     // On TX side, must swap src and dst
     swap_tuple(&tuple);
-    if (flags == NOT_TCP && tuple.proto == IPPROTO_UDP)
-        // Register UDP connection ?
-        {}
-    else {
+    if (flags == UDP){
+        state.SYN = 1;
+        state.SYNACK = 1;
+        state.ACK = 1;
+    } else {
         if (flags == SYN)
             state.SYN = 1;
         if (flags == SYNACK)
@@ -158,5 +159,5 @@ int xdp_tx(struct xdp_md *ctx)
             state.ACK = 1;
         update_connection_state(&tuple, &state);
     }
-    return forward(&map_redir, ctx->ingress_ifindex,0);   
+    return forward(&map_redir, ctx->ingress_ifindex,0);
 }
