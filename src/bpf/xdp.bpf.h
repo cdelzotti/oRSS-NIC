@@ -33,6 +33,7 @@ enum TCP_FLAGS {
   ACK = 4,
   FIN = 5,
   NO_FLAGS = 7,
+  UDP = 8,
 };
 
 // For some reason, the kernel might not have the xdp_md struct defined

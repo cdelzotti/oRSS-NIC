@@ -3,3 +3,4 @@
 vmlinux/*
 *.skel.h
 Build/
+controller/__pycache__/

@@ -10,7 +10,7 @@
 
 struct CoreLoad {
     uint8_t core_idx;
-    __uint128_t load;
+    uint64_t load;
     int biggestLoad_idx;
     int nb_flows;
     struct RingBuffer* flows[HASHMAP_SIZE];

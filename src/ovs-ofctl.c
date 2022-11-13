@@ -5088,10 +5088,31 @@ static const struct ovs_cmdl_command *get_all_commands(void)
     return all_commands;
 }
 
-
 // Custom functions to avoid executing shell commands
 
 #include "env.h"
+#include <stdio.h>
+
+// Copied from stackoverflow : https://stackoverflow.com/questions/646241/c-run-a-system-command-and-get-output
+void dump_ovs_state(void){
+    FILE *fp;
+    char path[1035];
+
+    /* Open the command for reading. */
+    fp = popen("ovs-ofctl dump-flows ovsbr1", "r");
+    if (fp == NULL) {
+        printf("Failed to run command\n" );
+        exit(1);
+    }
+
+    /* Read the output a line at a time - output it. */
+    while (fgets(path, sizeof(path), fp) != NULL) {
+        printf("%s", path);
+    }
+
+    /* close */
+    pclose(fp);
+}
 
 void free_dump(struct ofputil_flow_stats *fses, size_t n_fses) {
     for (size_t i = 0; i < n_fses; i++) {
@@ -5107,7 +5128,15 @@ void custom_mod_flow(char *flow_spec){
     ctx.argv[0] = "mod_flows";
     ctx.argv[1] =  OVS_BRIDGE;
     ctx.argv[2] = flow_spec;
-    ofctl_flow_mod(ctx.argc, ctx.argv, OFPFC_MODIFY);
+    // ofctl_flow_mod(ctx.argc, ctx.argv, OFPFC_MODIFY);
+    char cmd[150];
+    sprintf(cmd, "ovs-ofctl mod-flows %s \"%s\"", OVS_BRIDGE, flow_spec);
+    // printf("State before: \n");
+    // dump_ovs_state();
+    // printf("Executing: %s\n", cmd);
+    system(cmd);
+    // printf("State after: \n");
+    // dump_ovs_state();
     free(ctx.argv);
 }
 
@@ -5176,3 +5205,4 @@ void custom_dump_flows(char *dump_specs, struct ofputil_flow_stats **fses, size_
 
     vconn_close(vconn);
 }
+

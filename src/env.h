@@ -13,6 +13,9 @@
 // Size of the hashmap
 #define HASHMAP_SIZE 1024
 
+// Number of seconds before calling a connection timeout
+#define CONN_TIMEOUT 15
+
 // Number of cores to use
 #define NB_CORES 8
 // The imbalance threshold to trigger a rebalancing

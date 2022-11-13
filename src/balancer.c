@@ -22,13 +22,14 @@ void balancer_print_migrations(struct Migrations *migrations, struct Repartition
     printf("--------------------\n");
     // Describe core load
     for (int i = 0; i < nbCores; i++)
-        printf("Core %d: %lu flows, %lu load\n", i, repartition->core_load[i].nb_flows, repartition->core_load[i].load);
+        printf("Core %d: %u flows, %lu load\n", i, repartition->core_load[i].nb_flows, repartition->core_load[i].load);
     printf("\n");
     // Describe flows
     for (int i = 0; i < nbCores; i++){
         printf("Core %d:\n", i);
         for (int j = 0; j < repartition->core_load[i].nb_flows; j++){
-            printf("%d.%d.%d.%d:%d -> %d.%d.%d.%d:%d to core %d\n",
+            printf("[%u]%d.%d.%d.%d:%d -> %d.%d.%d.%d:%d to core %d\n",
+            repartition->core_load[i].flowKeys[j].proto,
             repartition->core_load[i].flowKeys[j].src_ip & 0xFF,
             (repartition->core_load[i].flowKeys[j].src_ip >> 8) & 0xFF,
             (repartition->core_load[i].flowKeys[j].src_ip >> 16) & 0xFF,
@@ -149,6 +150,6 @@ void balancer_balance(struct HashMap *hashmap, int nbCores, struct Migrations *m
             break;
         }
     }
-    balancer_print_migrations(migrations, &repartition, nbCores, hashmap);
+    // balancer_print_migrations(migrations, &repartition, nbCores, hashmap);
     balancer_free(&repartition);
 }

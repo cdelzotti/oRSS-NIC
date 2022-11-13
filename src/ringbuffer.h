@@ -7,12 +7,14 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 struct RingBuffer {
     uint8_t assigned_core; // Each ringbuffer corresponds to a flow, and each flow is assigned to a core
     int pos; // The position of the current element
     int size; // The number of elements in the buffer
     uint64_t buffer[RING_SIZE];
+    time_t last_add; // The time of the last addition to the buffer
 };
 
 /* Initialize ringbuffer
@@ -54,10 +56,10 @@ Parameters:
 */
 uint64_t ringbuffer_predict_next(struct RingBuffer *rb, int count);
 
-/* Returns true if the ringbuffer is full with the same value
+/* Returns true if the ringbuffer hasn't been updated for `CONN_TIMEOUT` seconds
 Parameters:
     ringbuffer* rb: pointer to ringbuffer
 */
-uint8_t ringbuffer_is_flat(struct RingBuffer *rb);
+uint8_t ringbuffer_is_timedout(struct RingBuffer *rb);
 
 #endif
