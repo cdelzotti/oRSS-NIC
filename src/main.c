@@ -1,11 +1,14 @@
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
-#include "load_bpf.h"
-#include "xdp.skel.h"
 #include <unistd.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include "load_bpf.h"
+#include "xdp.skel.h"
 #include "bpf/xdp.bpf.h"
 #include "ovs-ofctl.h"
 #include "command-line.h"
@@ -13,6 +16,7 @@
 #include "balancer.h"
 #include "hashmap.h"
 #include "ringbuffer.h"
+#include "openflow.h"
 
 uint8_t looping = 1;
 
@@ -90,8 +94,8 @@ uint64_t get_flow_stats(uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uin
 }
 
 void handle_interrupt(int sig) {
-    cleanup_flows();
-    printf("Caught interrupt signal, exiting...\n");
+    // cleanup_flows();
+    printf("\nCaught interrupt signal, shutting connection...\n");
     looping = 0;
 }
 
@@ -214,38 +218,47 @@ int user_space_prog(int connections_map_fd){
 
 int main(int argc, char const *argv[])
 {
-    // Initial setup
-    libbpf_set_print(libbpf_print_fn);
-    bump_memlock_rlimit();
+    // // Initial setup
+    // libbpf_set_print(libbpf_print_fn);
+    // bump_memlock_rlimit();
+    // signal(SIGINT, handle_interrupt);
+    // cleanup_flows();
+    // // Load BPF
+    // struct xdp_bpf *skel = attach_bpf();
+    // // Setup redirection map
+    // int RX = RX_IFINDEX;
+    // int TX = TX_IFINDEX;
+    // int redir_map_fd = bpf_map__fd(skel->maps.map_redir);
+    // int err = bpf_map_update_elem(redir_map_fd, &TX, &RX, 0);
+    // if (err) {
+    //     printf("Error setting up redirection map TX to RX: %s\n", strerror(err));
+    //     return -1;
+    // }
+    // err = bpf_map_update_elem(redir_map_fd, &RX, &TX, 0);
+    // if (err) {
+    //     printf("Error setting up redirection map RX to TX: %s\n", strerror(err));
+    //     return -1;
+    // }
+    // // Setup maps
+    // int connections_fd = bpf_map__fd(skel->maps.connections);
+    // if (connections_fd < 0) {
+    //     fprintf(stderr, "Failed to get connections map FD: %s\n", strerror(errno));
+    //     detach_bpf(skel);
+    //     exit(1);
+    // }
+    // printf("Everything loaded correctly!\n");
+    // user_space_prog(connections_fd);
+    // // Detach BPF
+    // detach_bpf(skel);
+    // printf("Everything unloaded correctly!\n");
+    openflow_connection ofp_connection;
+    openflow_create_connection(&ofp_connection);
     signal(SIGINT, handle_interrupt);
-    cleanup_flows();
-    // Load BPF
-    struct xdp_bpf *skel = attach_bpf();
-    // Setup redirection map
-    int RX = RX_IFINDEX;
-    int TX = TX_IFINDEX;
-    int redir_map_fd = bpf_map__fd(skel->maps.map_redir);
-    int err = bpf_map_update_elem(redir_map_fd, &TX, &RX, 0);
-    if (err) {
-        printf("Error setting up redirection map TX to RX: %s\n", strerror(err));
-        return -1;
+    while (looping) {
+        openflow_control(&ofp_connection);
     }
-    err = bpf_map_update_elem(redir_map_fd, &RX, &TX, 0);
-    if (err) {
-        printf("Error setting up redirection map RX to TX: %s\n", strerror(err));
-        return -1;
-    }
-    // Setup maps
-    int connections_fd = bpf_map__fd(skel->maps.connections);
-    if (connections_fd < 0) {
-        fprintf(stderr, "Failed to get connections map FD: %s\n", strerror(errno));
-        detach_bpf(skel);
-        exit(1);
-    }
-    printf("Everything loaded correctly!\n");
-    user_space_prog(connections_fd);
-    // Detach BPF
-    detach_bpf(skel);
-    printf("Everything unloaded correctly!\n");
+    // closing the listening socket
+    openflow_terminate_connection(&ofp_connection);
+
     return 0;
 }

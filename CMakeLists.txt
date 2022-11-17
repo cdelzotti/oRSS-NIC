@@ -73,6 +73,7 @@ src/load_bpf.c src/load_bpf.h
 src/ringbuffer.c src/ringbuffer.h
 src/hashmap.c src/hashmap.h 
 src/balancer.c src/balancer.h
+src/openflow.c src/openflow.h
 
 /home/ubuntu/oRSS-NIC/ovs/lib/entropy.h
 /home/ubuntu/oRSS-NIC/ovs/lib/entropy.c
