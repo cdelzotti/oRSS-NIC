@@ -55,6 +55,7 @@ class SimpleSwitch(app_manager.RyuApp):
         self.delete_all_flows(self.datapaths[0])
         self.arp_flood(self.datapaths[0])
         self.host_egress(self.datapaths[0])
+        self.dump_flow_stats(self.datapaths[0])
 
     def delete_all_flows(self, datapath):
         ofproto = datapath.ofproto
@@ -92,6 +93,17 @@ class SimpleSwitch(app_manager.RyuApp):
             priority=0,
             actions=actions)
         datapath.send_msg(mod)
+
+    def dump_flow_stats(self, datapath):
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+
+
+        match = parser.OFPMatch()
+        table_id = 0xff
+        out_port = ofproto.OFPP_NONE
+        req = parser.OFPFlowStatsRequest(datapath,0,match,table_id,out_port)
+        datapath.send_msg(req)
 
     def add_flow(self, datapath, in_port, flow_spec, actions):
         ofproto = datapath.ofproto

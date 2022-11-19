@@ -256,6 +256,10 @@ int main(int argc, char const *argv[])
     signal(SIGINT, handle_interrupt);
     while (looping) {
         openflow_control(&ofp_connection);
+        openflow_flows flows = {0};
+        openflow_get_flows(&ofp_connection, &flows);
+        printf("Got %u flows !\n", flows.nb_flows);
+        openflow_free_flows(&flows);
     }
     // closing the listening socket
     openflow_terminate_connection(&ofp_connection);

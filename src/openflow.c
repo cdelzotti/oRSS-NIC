@@ -10,19 +10,19 @@ uint32_t transaction_id = 0;
  * @return void : Information about the connection are stored in the conn structure, and the program exits if an error occurs
  */
 void get_socket(openflow_connection *conn) {
-    int socket_fd, valread;
+    int valread;
     int opt = 1;
     int addrlen = sizeof(conn->addr);
 
     // Get socket FD
-    if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    if ((conn->server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         printf("Could not get socket FD\n");
         exit(EXIT_FAILURE);
     }
 
-    // Forcefully attaching socket to the port 6666
-    if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR,
+    // Forcefully attaching socket to the port
+    if (setsockopt(conn->server_fd, SOL_SOCKET, SO_REUSEADDR,
                                                   &opt, sizeof(opt)))
     {
         printf("Could not set socket options\n");
@@ -33,22 +33,32 @@ void get_socket(openflow_connection *conn) {
     conn->addr.sin_port = htons( OF_PORT );
 
     // Attach socket to port
-    if (bind(socket_fd, (struct sockaddr*)&conn->addr,
+    if (bind(conn->server_fd, (struct sockaddr*)&conn->addr,
                                  sizeof(conn->addr))<0) {
         printf("Could not bind socket to port");
         exit(EXIT_FAILURE);
     }
-    if (listen(socket_fd, 1) < 0) {
+    if (listen(conn->server_fd, 1) < 0) {
         printf("Could not listen on socket");
         exit(EXIT_FAILURE);
     }
 
     printf("Waiting for client to connect...\n");
-    conn->fd = accept(socket_fd, (struct sockaddr*)&conn->addr,(socklen_t*)&addrlen);
+    conn->fd = accept4(conn->server_fd, (struct sockaddr*)&conn->addr,
+                       (socklen_t*)&addrlen, SOCK_NONBLOCK);
+    // conn->fd = accept(conn->server_fd, (struct sockaddr*)&conn->addr,(socklen_t*)&addrlen);
     if (conn-> fd < 0) {
         printf("Error accepting connection: %s\n", strerror(conn->fd));
         exit(EXIT_FAILURE);
     }
+    // Set socket to non-blocking
+    // int flags = fcntl(conn->fd, F_GETFL, 0);
+    // if (flags == -1) {
+    //     printf("Could not configure socket to non-blocking\n");
+    //     exit(EXIT_FAILURE);
+    // };
+    // flags = 0 ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
+    // fcntl(conn->fd, F_SETFL, fcntl(conn->fd, F_GETFL, 0) | O_NONBLOCK);
     printf("Client connected!\n");
 }
 
@@ -62,7 +72,7 @@ void get_socket(openflow_connection *conn) {
 int read_openflow_message(openflow_socket_fd socket_fd,struct openflow_message *message){
     // Read header information
     int valread = read(socket_fd, &message->header, OFP_HEADER_LEN);
-    if (valread < 0) {
+    if (valread < -1) {
         printf("Error reading headers from socket: %s\n", strerror(valread));
         return -1;
     }
@@ -225,6 +235,135 @@ void openflow_create_connection(openflow_connection *connection){
     printf("Connected to switch %lx\n", connection->features.datapath_id);
 }
 
+void ntoh_openflow_match(openflow_match *match){
+    match->wildcards = ntohl(match->wildcards);
+    match->in_port = ntohs(match->in_port);
+    match->dl_vlan = ntohs(match->dl_vlan);
+    match->dl_type = ntohs(match->dl_type);
+    match->nw_src = ntohl(match->nw_src);
+    match->nw_dst = ntohl(match->nw_dst);
+    match->tp_src = ntohs(match->tp_src);
+    match->tp_dst = ntohs(match->tp_dst);
+}
+
+void ntoh_openflow_flow_stats(openflow_flow_stats *flow_stats){
+    flow_stats->length = ntohs(flow_stats->length);
+    flow_stats->duration_sec = ntohs(flow_stats->duration_sec);
+    flow_stats->duration_nsec = ntohs(flow_stats->duration_nsec);
+    flow_stats->priority = ntohs(flow_stats->priority);
+    flow_stats->idle_timeout = ntohs(flow_stats->idle_timeout);
+    flow_stats->hard_timeout = ntohs(flow_stats->hard_timeout);
+    flow_stats->cookie.hi = ntohl(flow_stats->cookie.hi);
+    flow_stats->cookie.lo = ntohl(flow_stats->cookie.lo);
+    flow_stats->packet_count.lo = ntohl(flow_stats->packet_count.lo);
+    flow_stats->packet_count.hi = ntohl(flow_stats->packet_count.hi);
+    flow_stats->byte_count.lo = ntohl(flow_stats->byte_count.lo);
+    flow_stats->byte_count.hi = ntohl(flow_stats->byte_count.hi);
+    ntoh_openflow_match(&flow_stats->match);
+}
+
+void ntoh_openflow_action_output(openflow_action_output *action_output){
+    action_output->port = ntohs(action_output->port);
+    action_output->max_len = ntohs(action_output->max_len);
+    action_output->type = ntohs(action_output->type);
+    action_output->len = ntohs(action_output->len);
+}
+
+void ntoh_openflow_action_vlan_vid(openflow_action_vlan_vid *action_vlan_vid){
+    action_vlan_vid->vlan_vid = ntohs(action_vlan_vid->vlan_vid);
+    action_vlan_vid->type = ntohs(action_vlan_vid->type);
+    action_vlan_vid->len = ntohs(action_vlan_vid->len);
+}
+
+
+void openflow_get_flows(openflow_connection *connection, openflow_flows *flows){
+    // Create a flow request
+    int current_xid = transaction_id;
+    transaction_id++;
+    openflow_stats_request_message flow_request = {0};
+    flow_request.header.version = OFP_VERSION;
+    flow_request.header.type = OFP_STATS_REQUEST;
+    flow_request.header.length = htons(sizeof(openflow_stats_request_message));
+    flow_request.header.xid = htonl(current_xid);
+    flow_request.request_header.type = htons(OFPST_FLOW);
+    flow_request.request_header.flags = 0;
+    // Set wildcard to match all flows
+    flow_request.body.match.wildcards = htonl(OFPFW10_ALL);
+    flow_request.body.table_id = 0xff;
+    flow_request.body.out_port = OFPP_NONE;
+
+    // Send the flow request
+    int valwrite = write(connection->fd, &flow_request, sizeof(openflow_stats_request_message));
+    if (valwrite < 0) {
+        printf("Error writing FLOW_REQUEST message to socket: %s\n", strerror(valwrite));
+        return;
+    }
+    // Wait for the reply
+    openflow_message messages[MAX_STATS_REPLY];
+    int nb_messages = 0;
+    uint8_t reply_fully_received = 0;
+    while (!reply_fully_received){
+        openflow_wait_for_message(connection, OFP_STATS_REPLY, &messages[nb_messages], current_xid);
+        nb_messages++;
+        openflow_flow_stats_reply_header *reply_header = (openflow_flow_stats_reply_header *)messages[nb_messages-1].data;
+        if ((ntohs(reply_header->flags) & OFPSF_REPLY_MORE) == 0){
+            reply_fully_received = 1;
+        } else {
+        }
+    }
+    // Parse the replies
+    flows->nb_flows = 0;
+    for (uint8_t i = 0; i < nb_messages; i++){
+        void *response_end = messages[i].data + messages[i].header.length - OFP_HEADER_LEN;
+        // Place the pointer at the beginning of the first item
+        void *response_head = messages[i].data + sizeof(openflow_flow_stats_reply_header);
+        // While we have not reached the end of the message
+        while (response_head < response_end){
+            // Parse the flow statistics
+            flows->flow_stats[flows->nb_flows] = *(openflow_flow_stats *)response_head;
+            ntoh_openflow_flow_stats(&flows->flow_stats[flows->nb_flows]);
+            // Go to action details
+            void *actions_end = response_head + flows->flow_stats[flows->nb_flows].length;
+            response_head += sizeof(openflow_flow_stats);
+            // Parse the actions details
+            uint8_t *nb_actions = &flows->nb_actions[flows->nb_flows];
+            while (response_head < actions_end){
+                uint16_t action_type = ntohl(*(uint16_t *)response_head);
+                // Read the action
+                switch (action_type)
+                {
+                case OFPAT_OUTPUT:
+                    flows->actions[flows->nb_flows][*nb_actions].data = malloc(sizeof(openflow_action_output));
+                    *(openflow_action_output *)flows->actions[flows->nb_flows][*nb_actions].data = *(openflow_action_output *)response_head;
+                    ntoh_openflow_action_output((openflow_action_output *)flows->actions[flows->nb_flows][*nb_actions].data);
+                    response_head += sizeof(openflow_action_output);
+                    break;
+                case OFPAT_SET_VLAN_VID:
+                    flows->actions[flows->nb_flows][*nb_actions].data = malloc(sizeof(openflow_action_vlan_vid));
+                    *(openflow_action_vlan_vid *)flows->actions[flows->nb_flows][*nb_actions].data = *(openflow_action_vlan_vid *)response_head;
+                    ntoh_openflow_action_vlan_vid((openflow_action_vlan_vid *)flows->actions[flows->nb_flows][*nb_actions].data);
+                    response_head += sizeof(openflow_action_vlan_vid);
+                    break;
+                default:
+                    response_head = actions_end;
+                    break;
+                }
+                (*nb_actions)++;
+            }
+            response_head = actions_end;
+            flows->nb_flows++;
+        }
+    }
+}
+
+
+void openflow_free_flows(openflow_flows *flows){
+    for (uint8_t i = 0; i < flows->nb_flows; i++){
+        for (uint8_t j = 0; j < flows->nb_actions[i]; j++){
+            free(flows->actions[i][j].data);
+        }
+    }
+}
 
 /**
  * @brief Individual logic for each OpenFlow message type
@@ -245,24 +384,30 @@ void control_logic(openflow_connection *connection, openflow_message *message){
 }
 
 void openflow_control(openflow_connection *connection){
-    openflow_message message;
+    openflow_message message = {0};
     // Empty the connection buffer
     for (uint8_t i = 0; i < connection->nb_msg_buffered; i++) {
         control_logic(connection, &message);
         free_openflow_message_body(&message);
     }
     connection->nb_msg_buffered = 0;
+    // printf("Emptied connection buffer\n");
     // Empty the socket buffer
+    // printf("Reading from socket\n");
     while (read_openflow_message(connection->fd, &message) > 0) {
+        printf("[CONTROL] Received message of type %u\n", message.header.type);
         control_logic(connection, &message);
         free_openflow_message_body(&message);
     }
+    // printf("Emptied socket buffer\n");
 }
 
 void openflow_terminate_connection(openflow_connection *connection){
-    // Close connection
+    // Close connection socket
     close(connection->fd);
     shutdown(connection->fd, SHUT_RDWR);
+    // Close server socket
+    close(connection->server_fd);
     // Free ports
     free(connection->ports);
 }
