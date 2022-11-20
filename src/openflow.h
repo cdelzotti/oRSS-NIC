@@ -168,6 +168,7 @@ struct openflow_action_vlan_vid {
 typedef struct openflow_action_vlan_vid openflow_action_vlan_vid;
 
 struct action_descriptor {
+    uint16_t type;
     void *data;
 };
 
@@ -191,6 +192,16 @@ struct openflow_flows {
 
 typedef struct openflow_flows openflow_flows;
 
+typedef struct ofp10_flow_mod openflow_flow_mod;
+
+struct openflow_flow_mod_message {
+    openflow_header header;
+    openflow_flow_mod body;
+    openflow_action_vlan_vid vlan_vid;
+    openflow_action_output output;
+};
+
+typedef struct openflow_flow_mod_message openflow_flow_mod_message;
 
 /**
  * @brief Abstraction of an OpenFlow connection, users just need to call the right functions to send and receive messages
@@ -235,6 +246,8 @@ void openflow_control(openflow_connection *conn);
  * @param flows : flow structure that will be filled
  */
 void openflow_get_flows(openflow_connection *connection, openflow_flows *flows);
+
+void openflow_mod_vlan(openflow_connection *connection, openflow_flow_stats *flow_stats, action_descriptor *actions, uint16_t new_VLAN);
 
 /**
  * @brief Free the flow structure

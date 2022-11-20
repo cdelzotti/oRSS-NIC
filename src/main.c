@@ -258,7 +258,36 @@ int main(int argc, char const *argv[])
         openflow_control(&ofp_connection);
         openflow_flows flows = {0};
         openflow_get_flows(&ofp_connection, &flows);
-        printf("Got %u flows !\n", flows.nb_flows);
+        // Display flows
+        printf("--------------------\n");
+        for (int i = 0; i < flows.nb_flows; i++){
+            printf("Flow %i [%u] %u.%u.%u.%u:%u -> %u.%u.%u.%u:%u => ", i,
+                flows.flow_stats[i].match.nw_proto,
+                flows.flow_stats[i].match.nw_src & 0xFF, (flows.flow_stats[i].match.nw_src >> 8) & 0xFF, (flows.flow_stats[i].match.nw_src >> 16) & 0xFF, (flows.flow_stats[i].match.nw_src >> 24) & 0xFF,
+                flows.flow_stats[i].match.tp_src,
+                flows.flow_stats[i].match.nw_dst & 0xFF, (flows.flow_stats[i].match.nw_dst >> 8) & 0xFF, (flows.flow_stats[i].match.nw_dst >> 16) & 0xFF, (flows.flow_stats[i].match.nw_dst >> 24) & 0xFF,
+                flows.flow_stats[i].match.tp_dst);
+            for (int j = 0; j < flows.nb_actions[i]; j++){
+                switch ((*(openflow_action_output *)(flows.actions[i][j].data)).type)
+                {
+                case OFPAT_OUTPUT:
+                    printf("OUTPUT,");
+                    break;
+                case OFPAT_SET_VLAN_VID:
+                    printf("SET_VLAN_VID,");
+                    break;
+                default:
+                    break;
+                }
+            }
+            printf("\n");
+            if (i == 10){
+                printf("Migrating flow 10\n");
+                openflow_mod_vlan(&ofp_connection, &flows.flow_stats[i], flows.actions[i], 16);
+            }
+        }
+        printf("--------------------\n");
+        looping = 0;
         openflow_free_flows(&flows);
     }
     // closing the listening socket

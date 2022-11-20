@@ -240,10 +240,11 @@ void ntoh_openflow_match(openflow_match *match){
     match->in_port = ntohs(match->in_port);
     match->dl_vlan = ntohs(match->dl_vlan);
     match->dl_type = ntohs(match->dl_type);
-    match->nw_src = ntohl(match->nw_src);
-    match->nw_dst = ntohl(match->nw_dst);
+    // match->nw_src = ntohl(match->nw_src);
+    // match->nw_dst = ntohl(match->nw_dst);
     match->tp_src = ntohs(match->tp_src);
     match->tp_dst = ntohs(match->tp_dst);
+    
 }
 
 void ntoh_openflow_flow_stats(openflow_flow_stats *flow_stats){
@@ -276,6 +277,38 @@ void ntoh_openflow_action_vlan_vid(openflow_action_vlan_vid *action_vlan_vid){
 }
 
 
+void openflow_mod_vlan(openflow_connection *connection, openflow_flow_stats *flow_stats, action_descriptor *actions, uint16_t new_VLAN){
+    openflow_flow_mod_message flow_mod = {0};
+    // Setup header
+    flow_mod.header.version = OFP_VERSION;
+    flow_mod.header.type = OFP_FLOW_MOD;
+    flow_mod.header.xid = ntohl(transaction_id++);
+    flow_mod.header.length = htons(sizeof(openflow_flow_mod_message));
+    // Setup body
+    flow_mod.body.command = htons(OFPFC_MODIFY);
+    flow_mod.body.idle_timeout = htons(0);
+    flow_mod.body.hard_timeout = htons(0);
+    flow_mod.body.buffer_id = htonl(-1);
+    flow_mod.body.out_port = htons(OFPP_NONE);
+    flow_mod.body.flags = htons(0);
+    flow_mod.body.match = flow_stats->match;
+    // Setup VLAN actions
+    flow_mod.vlan_vid.type = htons(OFPAT_SET_VLAN_VID);
+    flow_mod.vlan_vid.len = htons(sizeof(openflow_action_vlan_vid));
+    flow_mod.vlan_vid.vlan_vid = htons(new_VLAN);
+    // Setup output action
+    openflow_action_output output = *(openflow_action_output *)actions[1].data;
+    flow_mod.output.len = htons(sizeof(openflow_action_output));
+    flow_mod.output.type = htons(output.type);
+    flow_mod.output.port = htons(output.port);
+    flow_mod.output.max_len = htons(output.max_len);
+    // Send flow mod
+    int valwrite = write(connection->fd, &flow_mod, sizeof(openflow_flow_mod_message));
+    if (valwrite < 0){
+        printf("Error sending flow mod\n");
+    }
+}
+
 void openflow_get_flows(openflow_connection *connection, openflow_flows *flows){
     // Create a flow request
     int current_xid = transaction_id;
@@ -287,8 +320,9 @@ void openflow_get_flows(openflow_connection *connection, openflow_flows *flows){
     flow_request.header.xid = htonl(current_xid);
     flow_request.request_header.type = htons(OFPST_FLOW);
     flow_request.request_header.flags = 0;
-    // Set wildcard to match all flows
-    flow_request.body.match.wildcards = htonl(OFPFW10_ALL);
+    // Set wildcard to match in_port only
+    flow_request.body.match.in_port = htons(RX_SWITCH_IFINDEX);
+    flow_request.body.match.wildcards = htonl(OFPFW10_ALL & ~OFPFW10_IN_PORT);
     flow_request.body.table_id = 0xff;
     flow_request.body.out_port = OFPP_NONE;
 
@@ -328,9 +362,9 @@ void openflow_get_flows(openflow_connection *connection, openflow_flows *flows){
             // Parse the actions details
             uint8_t *nb_actions = &flows->nb_actions[flows->nb_flows];
             while (response_head < actions_end){
-                uint16_t action_type = ntohl(*(uint16_t *)response_head);
+                flows->actions[flows->nb_flows][*nb_actions].type = ntohs(*(uint16_t *)response_head);
                 // Read the action
-                switch (action_type)
+                switch (flows->actions[flows->nb_flows][*nb_actions].type)
                 {
                 case OFPAT_OUTPUT:
                     flows->actions[flows->nb_flows][*nb_actions].data = malloc(sizeof(openflow_action_output));
@@ -339,12 +373,14 @@ void openflow_get_flows(openflow_connection *connection, openflow_flows *flows){
                     response_head += sizeof(openflow_action_output);
                     break;
                 case OFPAT_SET_VLAN_VID:
+
                     flows->actions[flows->nb_flows][*nb_actions].data = malloc(sizeof(openflow_action_vlan_vid));
                     *(openflow_action_vlan_vid *)flows->actions[flows->nb_flows][*nb_actions].data = *(openflow_action_vlan_vid *)response_head;
                     ntoh_openflow_action_vlan_vid((openflow_action_vlan_vid *)flows->actions[flows->nb_flows][*nb_actions].data);
                     response_head += sizeof(openflow_action_vlan_vid);
                     break;
                 default:
+                    printf("Unknown action type: %d\n", flows->actions[flows->nb_flows][*nb_actions].type);
                     response_head = actions_end;
                     break;
                 }
@@ -353,6 +389,7 @@ void openflow_get_flows(openflow_connection *connection, openflow_flows *flows){
             response_head = actions_end;
             flows->nb_flows++;
         }
+        free_openflow_message_body(&messages[i]);
     }
 }
 
