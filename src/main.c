@@ -19,6 +19,7 @@
 #include "openflow.h"
 
 uint8_t looping = 1;
+uint8_t interrupted = 0;
 
 void add_flow(int in_port, int out_processor, uint8_t proto, uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uint16_t dst_port){
     char str[150];
@@ -95,7 +96,14 @@ uint64_t get_flow_stats(uint32_t src_ip, uint32_t dst_ip, uint16_t src_port, uin
 
 void handle_interrupt(int sig) {
     // cleanup_flows();
-    printf("\nCaught interrupt signal, shutting connection...\n");
+    if (!interrupted){
+        printf("\nCaught interrupt signal, shutting connection...\nPress Ctrl+C again to force exit\n");
+        interrupted = 1;
+        looping = 0;
+    } else {
+        printf("\nForcing exit...\n");
+        exit(0);
+    }
     looping = 0;
 }
 
@@ -256,19 +264,13 @@ int main(int argc, char const *argv[])
     signal(SIGINT, handle_interrupt);
     while (looping) {
         openflow_control(&ofp_connection);
+        // Query flows
         openflow_flows flows = {0};
         openflow_get_flows(&ofp_connection, &flows);
-        // Display flows
-        openflow_dump_flows(&flows);
-        openflow_mod_vlan(&ofp_connection, &flows.flow_stats[0], flows.actions[0], 16);
-        printf("Applied migration\n");
-        // Re-query flows
-        openflow_free_flows(&flows);
-        openflow_get_flows(&ofp_connection, &flows);
-        // Re-display flows
-        openflow_dump_flows(&flows);
+        // openflow_dump_flows(&flows);
         openflow_free_flows(&flows);
         looping = 0;
+        printf("Finished querying flows\n");
     }
     // closing the listening socket
     openflow_terminate_connection(&ofp_connection);

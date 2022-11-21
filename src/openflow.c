@@ -80,12 +80,23 @@ int read_openflow_message(openflow_socket_fd socket_fd,struct openflow_message *
     message->header.xid = ntohl(message->header.xid);
     // If we read a message,
     if (valread > 0) {
+        // Prints message header
+        // printf("Message header: version=%u, type=%u, length=%u, xid=%u\n", message->header.version, message->header.type, message->header.length, message->header.xid);
+        // Check that openflow version is correct
+        if (message->header.version != OFP_VERSION && message->header.type != OFP_HELLO) {
+            printf("That's weird, OpenFlow version is: %u\n", message->header.version);
+        }
         // Read message body if there is one
         if (message->header.length > OFP_HEADER_LEN) {
             message->data = malloc(message->header.length - OFP_HEADER_LEN);
-            valread = read(socket_fd, message->data, message->header.length - OFP_HEADER_LEN);
-            if (valread < 0) {
-                printf("Error reading body from socket: %s\n", strerror(valread));
+            uint16_t byte_read = 0;
+            while (byte_read < message->header.length - OFP_HEADER_LEN) {
+                valread = read(socket_fd, message->data + byte_read, message->header.length - OFP_HEADER_LEN - byte_read);
+                if (valread < -1) {
+                    printf("Error reading message body from socket: %s\n", strerror(valread));
+                    return -1;
+                }
+                byte_read += valread;
             }
         }
         return 1;
@@ -174,6 +185,7 @@ void openflow_wait_for_message(openflow_connection *conn, uint8_t type, openflow
             } else {
                 // We received a message that is not the one we are waiting for
                 // Let's buffer it for the openflow_control function
+                printf("Was waiting for type %u with xid %u, got type %u with xid %u\n", type, xid, msg->header.type, msg->header.xid);
                 conn->msg_buffer[conn->nb_msg_buffered] = *msg;
                 conn->nb_msg_buffered++;
             }
@@ -378,11 +390,13 @@ void openflow_get_flows(openflow_connection *connection, openflow_flows *flows){
     uint8_t reply_fully_received = 0;
     while (!reply_fully_received){
         openflow_wait_for_message(connection, OFP_STATS_REPLY, &messages[nb_messages], current_xid);
+        openflow_flow_stats_reply_header *reply_header = (openflow_flow_stats_reply_header *)messages[nb_messages].data;
         nb_messages++;
-        openflow_flow_stats_reply_header *reply_header = (openflow_flow_stats_reply_header *)messages[nb_messages-1].data;
         if ((ntohs(reply_header->flags) & OFPSF_REPLY_MORE) == 0){
             reply_fully_received = 1;
+            printf("Received the last flow reply\n");
         } else {
+            printf("Received a partial reply, waiting for the next one\n");
         }
     }
     // Parse the replies
@@ -435,7 +449,7 @@ void openflow_get_flows(openflow_connection *connection, openflow_flows *flows){
 
 
 void openflow_free_flows(openflow_flows *flows){
-    for (uint8_t i = 0; i < flows->nb_flows; i++){
+    for (uint16_t i = 0; i < flows->nb_flows; i++){
         for (uint8_t j = 0; j < flows->nb_actions[i]; j++){
             free(flows->actions[i][j].data);
         }

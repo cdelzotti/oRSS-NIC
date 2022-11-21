@@ -140,7 +140,7 @@ class SimpleSwitch(app_manager.RyuApp):
 
     def generate_flows(self, datapath):
         # Installs a bunch of false flows for testing
-        for i in range(1, 6):
+        for i in range(1, 1024):
             flow_spec = {
                 "dl_type": ether_types.ETH_TYPE_IP,
                 "nw_proto": IP_TCP,
