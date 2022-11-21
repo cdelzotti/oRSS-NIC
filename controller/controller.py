@@ -58,6 +58,7 @@ class SimpleSwitch(app_manager.RyuApp):
         self.arp_flood(self.datapaths[0])
         self.host_egress(self.datapaths[0])
         self.generate_flows(self.datapaths[0])
+        
 
     def delete_all_flows(self, datapath):
         ofproto = datapath.ofproto
@@ -139,7 +140,7 @@ class SimpleSwitch(app_manager.RyuApp):
 
     def generate_flows(self, datapath):
         # Installs a bunch of false flows for testing
-        for i in range(2, 50):
+        for i in range(1, 6):
             flow_spec = {
                 "dl_type": ether_types.ETH_TYPE_IP,
                 "nw_proto": IP_TCP,

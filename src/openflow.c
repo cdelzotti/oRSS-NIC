@@ -222,19 +222,11 @@ void parse_features_reply(openflow_message *msg, openflow_connection *conn) {
     }
 }
 
-void openflow_create_connection(openflow_connection *connection){
-    get_socket(connection);
-    transaction_id = rand();
-    openflow_message message;
-    openflow_wait_for_message(connection, OFP_HELLO, &message,0);
-    send_openflow_hello(connection->fd);
-    uint32_t features_xid = send_openflow_features_request(connection->fd);
-    openflow_wait_for_message(connection, OFP_FEATURES_REPLY, &message, features_xid);
-    parse_features_reply(&message, connection);
-    free_openflow_message_body(&message);
-    printf("Connected to switch %lx\n", connection->features.datapath_id);
-}
-
+/**
+ * @brief Convert a match structure from the network byte order to the host byte order
+ * 
+ * @param match : the structure to convert
+ */
 void ntoh_openflow_match(openflow_match *match){
     match->wildcards = ntohl(match->wildcards);
     match->in_port = ntohs(match->in_port);
@@ -247,6 +239,32 @@ void ntoh_openflow_match(openflow_match *match){
     
 }
 
+/**
+ * @brief Convert a match structure from the host byte order to the network byte order
+ * 
+ * @param match : the structure to convert
+ * @return openflow_match : the converted structure
+ * 
+ * @note This function returns the structure instead of modifying the pointer to keep the structure unchaged of the caller
+ */
+openflow_match hton_openflow_match(openflow_match *match){
+    openflow_match match_copy = *match;
+    match_copy.wildcards = htonl(match_copy.wildcards);
+    match_copy.in_port = htons(match_copy.in_port);
+    match_copy.dl_vlan = htons(match_copy.dl_vlan);
+    match_copy.dl_type = htons(match_copy.dl_type);
+    // match_copy.nw_src = htonl(match_copy.nw_src);
+    // match_copy.nw_dst = htonl(match_copy.nw_dst);
+    match_copy.tp_src = htons(match_copy.tp_src);
+    match_copy.tp_dst = htons(match_copy.tp_dst);
+    return match_copy;
+}
+
+/**
+ * @brief Convert a flow stats structure from the network byte order to the host byte order
+ * 
+ * @param flow_stats 
+ */
 void ntoh_openflow_flow_stats(openflow_flow_stats *flow_stats){
     flow_stats->length = ntohs(flow_stats->length);
     flow_stats->duration_sec = ntohs(flow_stats->duration_sec);
@@ -263,6 +281,11 @@ void ntoh_openflow_flow_stats(openflow_flow_stats *flow_stats){
     ntoh_openflow_match(&flow_stats->match);
 }
 
+/**
+ * @brief Convert an output_action structure from the network byte order to the host byte order
+ * 
+ * @param action_output 
+ */
 void ntoh_openflow_action_output(openflow_action_output *action_output){
     action_output->port = ntohs(action_output->port);
     action_output->max_len = ntohs(action_output->max_len);
@@ -270,12 +293,29 @@ void ntoh_openflow_action_output(openflow_action_output *action_output){
     action_output->len = ntohs(action_output->len);
 }
 
+/**
+ * @brief Convert a vlan_action structure from the host byte order to the network byte order
+ * 
+ * @param action_vlan_vid 
+ */
 void ntoh_openflow_action_vlan_vid(openflow_action_vlan_vid *action_vlan_vid){
     action_vlan_vid->vlan_vid = ntohs(action_vlan_vid->vlan_vid);
     action_vlan_vid->type = ntohs(action_vlan_vid->type);
     action_vlan_vid->len = ntohs(action_vlan_vid->len);
 }
 
+void openflow_create_connection(openflow_connection *connection){
+    get_socket(connection);
+    transaction_id = rand();
+    openflow_message message;
+    openflow_wait_for_message(connection, OFP_HELLO, &message,0);
+    send_openflow_hello(connection->fd);
+    uint32_t features_xid = send_openflow_features_request(connection->fd);
+    openflow_wait_for_message(connection, OFP_FEATURES_REPLY, &message, features_xid);
+    parse_features_reply(&message, connection);
+    free_openflow_message_body(&message);
+    printf("Connected to switch %lx\n", connection->features.datapath_id);
+}
 
 void openflow_mod_vlan(openflow_connection *connection, openflow_flow_stats *flow_stats, action_descriptor *actions, uint16_t new_VLAN){
     openflow_flow_mod_message flow_mod = {0};
@@ -291,7 +331,7 @@ void openflow_mod_vlan(openflow_connection *connection, openflow_flow_stats *flo
     flow_mod.body.buffer_id = htonl(-1);
     flow_mod.body.out_port = htons(OFPP_NONE);
     flow_mod.body.flags = htons(0);
-    flow_mod.body.match = flow_stats->match;
+    flow_mod.body.match = hton_openflow_match(&flow_stats->match);
     // Setup VLAN actions
     flow_mod.vlan_vid.type = htons(OFPAT_SET_VLAN_VID);
     flow_mod.vlan_vid.len = htons(sizeof(openflow_action_vlan_vid));
@@ -399,7 +439,43 @@ void openflow_free_flows(openflow_flows *flows){
         for (uint8_t j = 0; j < flows->nb_actions[i]; j++){
             free(flows->actions[i][j].data);
         }
+        flows->nb_actions[i] = 0;
     }
+    flows->nb_flows = 0;
+}
+
+void openflow_dump_flows(openflow_flows *flows){
+    // Display flows
+    printf("--------------------\n");
+    for (int i = 0; i < flows->nb_flows; i++){
+        printf("Flow %i [%s] %u.%u.%u.%u:%u -> %u.%u.%u.%u:%u => ", i,
+            (flows->flow_stats[i].match.nw_proto == 6) ? "TCP" : (flows->flow_stats[i].match.nw_proto == 17) ? "UDP" : "UKN",
+            flows->flow_stats[i].match.nw_src & 0xFF, (flows->flow_stats[i].match.nw_src >> 8) & 0xFF, (flows->flow_stats[i].match.nw_src >> 16) & 0xFF, (flows->flow_stats[i].match.nw_src >> 24) & 0xFF,
+            flows->flow_stats[i].match.tp_src,
+            flows->flow_stats[i].match.nw_dst & 0xFF, (flows->flow_stats[i].match.nw_dst >> 8) & 0xFF, (flows->flow_stats[i].match.nw_dst >> 16) & 0xFF, (flows->flow_stats[i].match.nw_dst >> 24) & 0xFF,
+            flows->flow_stats[i].match.tp_dst);
+        for (int j = 0; j < flows->nb_actions[i]; j++){
+            switch (flows->actions[i][j].type)
+            {
+            case OFPAT_OUTPUT:
+            {
+                openflow_action_output *action_output = (openflow_action_output *)flows->actions[i][j].data;
+                printf("OUTPUT(%u),", action_output->port);
+                break;
+            }
+            case OFPAT_SET_VLAN_VID:
+            {
+                openflow_action_vlan_vid *action_vlan_vid = (openflow_action_vlan_vid *)flows->actions[i][j].data;
+                printf("SET_VLAN_VID(%u),", action_vlan_vid->vlan_vid);
+                break;
+            }
+            default:
+                break;
+            }
+        }
+        printf("\n");
+    }
+    printf("--------------------\n");
 }
 
 /**

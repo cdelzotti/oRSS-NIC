@@ -43,9 +43,9 @@
 #define OFP_ECHO_REPLY 0x03
 #define OFP_FEATURES_REQUEST 0x05
 #define OFP_FEATURES_REPLY 0x06
-#define OFP_FLOW_MOD 0x08
 #define OFP_STATS_REQUEST 0x10
 #define OFP_STATS_REPLY 0x11
+#define OFP_FLOW_MOD 0x0e
 
 
 // OpenFlow stats request types
@@ -112,7 +112,10 @@ struct openflow_message {
 
 typedef struct openflow_message openflow_message;
 
-
+/**
+ * @brief OpenFlow stats requests have their own headers
+ * 
+ */
 struct openflow_flow_stats_request_header {
     uint16_t type;
     uint16_t flags;
@@ -133,6 +136,10 @@ typedef struct ofp10_match openflow_match;
 
 typedef struct openflow_action_header openflow_action_header;
 
+/**
+ * @brief OpenFlow action types
+ * 
+ */
 enum OFPAT {
     OFPAT_OUTPUT = 0,
     OFPAT_SET_VLAN_VID = 1,
@@ -247,6 +254,21 @@ void openflow_control(openflow_connection *conn);
  */
 void openflow_get_flows(openflow_connection *connection, openflow_flows *flows);
 
+/**
+ * @brief Prints a dump of each flow in the flows structure
+ *
+ * @param flows to dump
+ */
+void openflow_dump_flows(openflow_flows *flows);
+
+/**
+ * @brief Modify the VLAN with which the flow will be tagged
+ * 
+ * @param connection 
+ * @param flow_stats 
+ * @param actions 
+ * @param new_VLAN 
+ */
 void openflow_mod_vlan(openflow_connection *connection, openflow_flow_stats *flow_stats, action_descriptor *actions, uint16_t new_VLAN);
 
 /**
