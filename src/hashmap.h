@@ -2,12 +2,19 @@
 #define HASHMAP_H
 
 #include "ringbuffer.h"
-#include "bpf/xdp.bpf.h"
 #include "env.h"
 
 /*
 Represents a matching key-value pair in the hashmap.
 */
+struct FiveTuple {
+  uint32_t src_ip; /**4 bytes source IP address */
+  uint32_t dst_ip; /** 4 bytes destination IP address */
+  uint16_t src_port; /** 2 bytes source port */
+  uint16_t dst_port; /** 2 bytes destination port */
+  uint8_t proto;  /** 1 byte protocol */
+};
+
 struct key_value_pair {
     uint8_t valid;
     struct FiveTuple key;
@@ -76,5 +83,13 @@ struct RingBuffer *hashmap_new(struct HashMap *hashmap, struct FiveTuple *key);
         0 if a next key couldn't.
 */
 uint8_t hashmap_get_next(struct HashMap *hashmap, struct FiveTuple *current_key, struct FiveTuple *next_key, struct RingBuffer **next_value);
+
+
+/**
+ * @brief Cleans the hashmap from expired entries
+ *
+ * @param hashmap
+ */
+void hashmap_cleanup_inactive_flows(struct HashMap *hashmap);
 
 #endif

@@ -252,8 +252,8 @@ void ntoh_openflow_match(openflow_match *match){
     match->in_port = ntohs(match->in_port);
     match->dl_vlan = ntohs(match->dl_vlan);
     match->dl_type = ntohs(match->dl_type);
-    // match->nw_src = ntohl(match->nw_src);
-    // match->nw_dst = ntohl(match->nw_dst);
+    match->nw_src = ntohl(match->nw_src);
+    match->nw_dst = ntohl(match->nw_dst);
     match->tp_src = ntohs(match->tp_src);
     match->tp_dst = ntohs(match->tp_dst);
     
@@ -273,8 +273,8 @@ openflow_match hton_openflow_match(openflow_match *match){
     match_copy.in_port = htons(match_copy.in_port);
     match_copy.dl_vlan = htons(match_copy.dl_vlan);
     match_copy.dl_type = htons(match_copy.dl_type);
-    // match_copy.nw_src = htonl(match_copy.nw_src);
-    // match_copy.nw_dst = htonl(match_copy.nw_dst);
+    match_copy.nw_src = htonl(match_copy.nw_src);
+    match_copy.nw_dst = htonl(match_copy.nw_dst);
     match_copy.tp_src = htons(match_copy.tp_src);
     match_copy.tp_dst = htons(match_copy.tp_dst);
     return match_copy;
@@ -337,7 +337,7 @@ void openflow_create_connection(openflow_connection *connection){
     printf("Connected to switch %lx\n", connection->features.datapath_id);
 }
 
-void openflow_mod_vlan(openflow_connection *connection, openflow_flow_stats *flow_stats, action_descriptor *actions, uint16_t new_VLAN){
+void openflow_mod_vlan(openflow_connection *connection,struct FiveTuple *fiveTuple, uint16_t new_VLAN){
     openflow_flow_mod_message flow_mod = {0};
     // Setup header
     flow_mod.header.version = OFP_VERSION;
@@ -351,17 +351,32 @@ void openflow_mod_vlan(openflow_connection *connection, openflow_flow_stats *flo
     flow_mod.body.buffer_id = htonl(-1);
     flow_mod.body.out_port = htons(OFPP_NONE);
     flow_mod.body.flags = htons(0);
-    flow_mod.body.match = hton_openflow_match(&flow_stats->match);
+    // flow_mod.body.match = hton_openflow_match(&flow_stats->match);
+    openflow_match body_match = {
+        .wildcards = htonl(OFPW_MATCH_FIVE_TUPLE),
+        .in_port = htons(OVS_NETWORK_IFINDEX),
+        .dl_src = {0x00,0x00,0x00,0x00,0x00,0x00},
+        .dl_dst = {0x00,0x00,0x00,0x00,0x00,0x00},
+        .dl_vlan = 0,
+        .dl_vlan_pcp = 0,
+        .dl_type = htons(IPV4_ETH_TYPE),
+        .nw_tos = 0,
+        .nw_proto = fiveTuple->proto,
+        .nw_src = htonl(fiveTuple->src_ip),
+        .nw_dst = htonl(fiveTuple->dst_ip),
+        .tp_src = htons(fiveTuple->src_port),
+        .tp_dst = htons(fiveTuple->dst_port)
+    };
+    flow_mod.body.match = body_match;
     // Setup VLAN actions
     flow_mod.vlan_vid.type = htons(OFPAT_SET_VLAN_VID);
     flow_mod.vlan_vid.len = htons(sizeof(openflow_action_vlan_vid));
     flow_mod.vlan_vid.vlan_vid = htons(new_VLAN);
     // Setup output action
-    openflow_action_output output = *(openflow_action_output *)actions[1].data;
     flow_mod.output.len = htons(sizeof(openflow_action_output));
-    flow_mod.output.type = htons(output.type);
-    flow_mod.output.port = htons(output.port);
-    flow_mod.output.max_len = htons(output.max_len);
+    flow_mod.output.type = htons(OFPAT_OUTPUT);
+    flow_mod.output.port = htons(OVS_HOST_IFINDEX);
+    flow_mod.output.max_len = htons(OVS_OUTPUT_ACTION_MAX_LEN);
     // Send flow mod
     int valwrite = write(connection->fd, &flow_mod, sizeof(openflow_flow_mod_message));
     if (valwrite < 0){
@@ -381,7 +396,7 @@ void openflow_get_flows(openflow_connection *connection, openflow_flows *flows){
     flow_request.request_header.type = htons(OFPST_FLOW);
     flow_request.request_header.flags = 0;
     // Set wildcard to match in_port only
-    flow_request.body.match.in_port = htons(RX_SWITCH_IFINDEX);
+    flow_request.body.match.in_port = htons(OVS_NETWORK_IFINDEX); // Packets coming from the network
     flow_request.body.match.wildcards = htonl(OFPFW10_ALL & ~OFPFW10_IN_PORT);
     flow_request.body.table_id = 0xff;
     flow_request.body.out_port = OFPP_NONE;
@@ -469,9 +484,15 @@ void openflow_dump_flows(openflow_flows *flows){
     for (int i = 0; i < flows->nb_flows; i++){
         printf("Flow %i [%s] %u.%u.%u.%u:%u -> %u.%u.%u.%u:%u => ", i,
             (flows->flow_stats[i].match.nw_proto == 6) ? "TCP" : (flows->flow_stats[i].match.nw_proto == 17) ? "UDP" : "UKN",
-            flows->flow_stats[i].match.nw_src & 0xFF, (flows->flow_stats[i].match.nw_src >> 8) & 0xFF, (flows->flow_stats[i].match.nw_src >> 16) & 0xFF, (flows->flow_stats[i].match.nw_src >> 24) & 0xFF,
+            (flows->flow_stats[i].match.nw_src >> 24) & 0xFF,
+            (flows->flow_stats[i].match.nw_src >> 16) & 0xFF,
+            (flows->flow_stats[i].match.nw_src >> 8) & 0xFF,
+            flows->flow_stats[i].match.nw_src & 0xFF,
             flows->flow_stats[i].match.tp_src,
-            flows->flow_stats[i].match.nw_dst & 0xFF, (flows->flow_stats[i].match.nw_dst >> 8) & 0xFF, (flows->flow_stats[i].match.nw_dst >> 16) & 0xFF, (flows->flow_stats[i].match.nw_dst >> 24) & 0xFF,
+            (flows->flow_stats[i].match.nw_dst >> 24) & 0xFF,
+            (flows->flow_stats[i].match.nw_dst >> 16) & 0xFF,
+            (flows->flow_stats[i].match.nw_dst >> 8) & 0xFF,
+            flows->flow_stats[i].match.nw_dst & 0xFF,
             flows->flow_stats[i].match.tp_dst);
         for (int j = 0; j < flows->nb_actions[i]; j++){
             switch (flows->actions[i][j].type)
@@ -540,4 +561,8 @@ void openflow_terminate_connection(openflow_connection *connection){
     free(connection->ports);
 }
 
-
+uint64_t openflow_ovsbe64_to_uint64(ovs_32aligned_be64 value){
+    uint32_t lower_bits = value.lo;
+    uint32_t upper_bits = value.hi;
+    return ((uint64_t)upper_bits << 32) | lower_bits;
+}

@@ -1,12 +1,7 @@
-// Indexes of the interfaces to attach the XDP programs to
-#define RX_IFINDEX 4
-#define TX_IFINDEX 6
-
 // OVS info
-#define OVS_BRIDGE "ovsbr1"
-// Index of the interface in the OVS bridge, run `ovs-ofctl show <bridge-name>` to find out
-#define RX_SWITCH_IFINDEX 1
-#define TX_SWITCH_IFINDEX 2
+#define OVS_HOST_IFINDEX 2
+#define OVS_NETWORK_IFINDEX 1
+#define OVS_OUTPUT_ACTION_MAX_LEN 65535
 
 // Size of the ringbuffer
 #define RING_SIZE 16

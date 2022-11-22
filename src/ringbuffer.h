@@ -14,7 +14,7 @@ struct RingBuffer {
     int pos; // The position of the current element
     int size; // The number of elements in the buffer
     uint64_t buffer[RING_SIZE];
-    time_t last_add; // The time of the last addition to the buffer
+    uint8_t is_active;
 };
 
 /* Initialize ringbuffer

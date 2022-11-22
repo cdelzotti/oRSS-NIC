@@ -34,7 +34,7 @@ IP_TCP = 6
 IP_UDP = 17
 IP_ICMP = 1
 
-DEFAULT_VLAN = 0x000a
+DEFAULT_VLAN = 0x0000
 
 class SimpleSwitch(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION]
@@ -140,7 +140,7 @@ class SimpleSwitch(app_manager.RyuApp):
 
     def generate_flows(self, datapath):
         # Installs a bunch of false flows for testing
-        for i in range(1, 1024):
+        for i in range(1, 10):
             flow_spec = {
                 "dl_type": ether_types.ETH_TYPE_IP,
                 "nw_proto": IP_TCP,

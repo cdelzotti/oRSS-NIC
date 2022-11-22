@@ -22,9 +22,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <endian.h>
 #include <openflow/openflow.h>
 #include <fcntl.h>
 #include "env.h"
+#include "hashmap.h"
 
 /**
  * 64 bits implementation of the network <-> host byte order conversion
@@ -36,6 +38,8 @@
 #define OFP_VERSION 0x01
 #define OFP_HEADER_LEN 8
 #define OFP_MAX_PORT_NAME_LEN 16
+// #define OFPW_MATCH_FIVE_TUPLE OFPFW10_DL_TYPE | OFPFW10_NW_PROTO | OFPFW10_NW_SRC_MASK | OFPFW10_NW_DST_MASK | OFPFW10_TP_SRC | OFPFW10_TP_DST
+#define OFPW_MATCH_FIVE_TUPLE 0x0030000e
 
 // OpenFlow message types
 #define OFP_HELLO 0x00
@@ -47,9 +51,14 @@
 #define OFP_STATS_REPLY 0x11
 #define OFP_FLOW_MOD 0x0e
 
-
 // OpenFlow stats request types
 #define OFPST_FLOW 0x01
+
+// Some network constants
+#define IPV4_ETH_TYPE 0x0800
+#define TCP_PROTO 0x06
+#define UDP_PROTO 0x11
+
 
 typedef int openflow_socket_fd;
 
@@ -264,12 +273,19 @@ void openflow_dump_flows(openflow_flows *flows);
 /**
  * @brief Modify the VLAN with which the flow will be tagged
  * 
- * @param connection 
- * @param flow_stats 
- * @param actions 
- * @param new_VLAN 
+ * @param connection
+ * @param fiveTuple
+ * @param new_VLAN
  */
-void openflow_mod_vlan(openflow_connection *connection, openflow_flow_stats *flow_stats, action_descriptor *actions, uint16_t new_VLAN);
+void openflow_mod_vlan(openflow_connection *connection, struct FiveTuple *fiveTuple, uint16_t new_VLAN);
+
+/**
+ * @brief Converts an OVS be64 to uint64_t
+ * 
+ * @param ovs_32aligned_be64 : the value to convert
+ * @return uint64_t : the converted value
+ */
+uint64_t openflow_ovsbe64_to_uint64(ovs_32aligned_be64 value);
 
 /**
  * @brief Free the flow structure

@@ -70,6 +70,10 @@ void balancer_compute_repartition(struct Repartition *repartition, struct HashMa
     struct RingBuffer *value;
     while (hashmap_get_next(hashmap, &previous_key, &current_key, &value)){
         // Memorized assigned flows
+        if (repartition->core_load[value->assigned_core].nb_flows > HASHMAP_SIZE){
+            printf("ERROR: core %d is full, max number of connection is %d\n", value->assigned_core, HASHMAP_SIZE);
+            exit(1);
+        }
         repartition->core_load[value->assigned_core].flowKeys[repartition->core_load[value->assigned_core].nb_flows] = current_key;
         repartition->core_load[value->assigned_core].flows[repartition->core_load[value->assigned_core].nb_flows] = value;
         repartition->core_load[value->assigned_core].nb_flows++;
@@ -150,6 +154,6 @@ void balancer_balance(struct HashMap *hashmap, int nbCores, struct Migrations *m
             break;
         }
     }
-    // balancer_print_migrations(migrations, &repartition, nbCores, hashmap);
+    balancer_print_migrations(migrations, &repartition, nbCores, hashmap);
     balancer_free(&repartition);
 }

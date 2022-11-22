@@ -13,18 +13,19 @@ void ringbuffer_destroy(struct RingBuffer *rb){
 
 void ringbuffer_add(struct RingBuffer *rb, uint64_t value){
     int last_pos = rb->pos;
-    printf("Last number of packets: %lu\n", rb->buffer[last_pos]);
     rb->pos = (rb->pos + 1) % RING_SIZE;
-    rb->buffer[rb->pos] = value;
+    int new_pos = rb->pos;
+    // Add value to ring buffer
+    if (rb->size == 0){
+        rb->buffer[new_pos] = value;
+    } else {
+        rb->buffer[new_pos] = value - rb->buffer[last_pos];
+    }
+    // Update size
     if (rb->size < RING_SIZE){
         rb->size++;
     }
-    int new_pos = rb->pos;
-    printf("New number of packets: %lu\n", rb->buffer[new_pos]);
-    if (rb->buffer[last_pos] != rb->buffer[new_pos]){
-        // Something has changed, update the last_add time
-        time(&rb->last_add);
-    }
+    rb->is_active = 1;
 }
 
 uint64_t ringbuffer_get_last(struct RingBuffer *rb){
@@ -59,29 +60,4 @@ uint64_t ringbuffer_predict_next(struct RingBuffer *rb, int count){
     uint64_t last = ringbuffer_get_last(rb);
     uint64_t average = ringbuffer_get_average(rb, count);
     return last + (average - last);
-}
-
-uint8_t ringbuffer_is_timedout(struct RingBuffer *rb){
-    time_t now;
-    time(&now);
-    double time_elapsed = difftime(now, rb->last_add);
-    printf("Last add: %ld, now: %ld, time elapsed: %f\n", rb->last_add, now, time_elapsed);
-    return time_elapsed > CONN_TIMEOUT;
-    // if (rb->size < RING_SIZE){
-    //     return 0;
-    // }
-    // uint64_t last = ringbuffer_get_last(rb);
-    // int i = 0;
-    // int pos = rb->pos;
-    // while (i < rb->size){
-    //     if (rb->buffer[pos] != last){
-    //         return 0;
-    //     }
-    //     pos = (pos - 1) % RING_SIZE;
-    //     if (pos < 0){
-    //         pos = RING_SIZE - 1;
-    //     }
-    //     i++;
-    // }
-    // return 1;
 }
