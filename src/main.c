@@ -262,6 +262,7 @@ int main(int argc, char const *argv[])
     openflow_connection ofp_connection;
     openflow_create_connection(&ofp_connection);
     signal(SIGINT, handle_interrupt);
+    uint32_t loops = 0;
     while (looping) {
         openflow_control(&ofp_connection);
         // Query flows
@@ -269,8 +270,10 @@ int main(int argc, char const *argv[])
         openflow_get_flows(&ofp_connection, &flows);
         // openflow_dump_flows(&flows);
         openflow_free_flows(&flows);
-        looping = 0;
-        printf("Finished querying flows\n");
+        loops += 1;
+        if (loops % 10 == 0){
+            printf("Loops: %u\n", loops);
+        }
     }
     // closing the listening socket
     openflow_terminate_connection(&ofp_connection);

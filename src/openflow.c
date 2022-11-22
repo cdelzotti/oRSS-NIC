@@ -51,15 +51,30 @@ void get_socket(openflow_connection *conn) {
         printf("Error accepting connection: %s\n", strerror(conn->fd));
         exit(EXIT_FAILURE);
     }
-    // Set socket to non-blocking
-    // int flags = fcntl(conn->fd, F_GETFL, 0);
-    // if (flags == -1) {
-    //     printf("Could not configure socket to non-blocking\n");
-    //     exit(EXIT_FAILURE);
-    // };
-    // flags = 0 ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
-    // fcntl(conn->fd, F_SETFL, fcntl(conn->fd, F_GETFL, 0) | O_NONBLOCK);
     printf("Client connected!\n");
+}
+
+/**
+ * @brief Ensures that exactly `count` bytes are read from `fd` and put in `buf`
+ *
+ * @param fd : the file descriptor to read from
+ * @param buf : the buffer to write to, must be at least `count` bytes long (malloc is on you)
+ * @param count : the number of bytes to read
+ *
+ * @note This function will block until all bytes are read or an error occurs, allowing to perform a blocking read on a non-blocking socket
+ */
+void safe_read(openflow_socket_fd fd, void *buf, uint16_t count) {
+    uint16_t bytes_read = 0;
+    while (bytes_read < count) {
+        int valread = read(fd, buf + bytes_read, count - bytes_read);
+        if (valread < -1) {
+            printf("Error reading message body from socket: %s\n", strerror(valread));
+            return -1;
+        }
+        if (valread >= 0){
+            bytes_read += valread;
+        }
+    }
 }
 
 /**
@@ -89,15 +104,7 @@ int read_openflow_message(openflow_socket_fd socket_fd,struct openflow_message *
         // Read message body if there is one
         if (message->header.length > OFP_HEADER_LEN) {
             message->data = malloc(message->header.length - OFP_HEADER_LEN);
-            uint16_t byte_read = 0;
-            while (byte_read < message->header.length - OFP_HEADER_LEN) {
-                valread = read(socket_fd, message->data + byte_read, message->header.length - OFP_HEADER_LEN - byte_read);
-                if (valread < -1) {
-                    printf("Error reading message body from socket: %s\n", strerror(valread));
-                    return -1;
-                }
-                byte_read += valread;
-            }
+            safe_read(socket_fd, message->data, message->header.length - OFP_HEADER_LEN);
         }
         return 1;
     } else {
@@ -394,9 +401,6 @@ void openflow_get_flows(openflow_connection *connection, openflow_flows *flows){
         nb_messages++;
         if ((ntohs(reply_header->flags) & OFPSF_REPLY_MORE) == 0){
             reply_fully_received = 1;
-            printf("Received the last flow reply\n");
-        } else {
-            printf("Received a partial reply, waiting for the next one\n");
         }
     }
     // Parse the replies
@@ -511,22 +515,18 @@ void control_logic(openflow_connection *connection, openflow_message *message){
 }
 
 void openflow_control(openflow_connection *connection){
-    openflow_message message = {0};
     // Empty the connection buffer
     for (uint8_t i = 0; i < connection->nb_msg_buffered; i++) {
-        control_logic(connection, &message);
-        free_openflow_message_body(&message);
+        control_logic(connection, &connection->msg_buffer[i]);
+        free_openflow_message_body(&connection->msg_buffer[i]);
     }
     connection->nb_msg_buffered = 0;
-    // printf("Emptied connection buffer\n");
     // Empty the socket buffer
-    // printf("Reading from socket\n");
+    openflow_message message = {0};
     while (read_openflow_message(connection->fd, &message) > 0) {
-        printf("[CONTROL] Received message of type %u\n", message.header.type);
         control_logic(connection, &message);
         free_openflow_message_body(&message);
     }
-    // printf("Emptied socket buffer\n");
 }
 
 void openflow_terminate_connection(openflow_connection *connection){
