@@ -6,537 +6,77 @@ project(oRSS)
 # Tell cmake where to find BpfObject module
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/tools/cmake)
 
-set(OVS_PATH ovs)
+# set(OVS_PATH ovs)
 
 # Build vendored libbpf
 include(ExternalProject)
-ExternalProject_Add(libbpf
-        PREFIX libbpf
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libbpf/src
-        CONFIGURE_COMMAND ""
-        BUILD_COMMAND make
-        BUILD_STATIC_ONLY=1
-        OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf
-        DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf
-        INCLUDEDIR=
-        LIBDIR=
-        UAPIDIR=
-        install
-        BUILD_IN_SOURCE TRUE
-        INSTALL_COMMAND ""
-        STEP_TARGETS build
-        )
+# ExternalProject_Add(libbpf
+#         PREFIX libbpf
+#         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libbpf/src
+#         CONFIGURE_COMMAND ""
+#         BUILD_COMMAND make
+#         BUILD_STATIC_ONLY=1
+#         OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf
+#         DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/libbpf
+#         INCLUDEDIR=
+#         LIBDIR=
+#         UAPIDIR=
+#         install
+#         BUILD_IN_SOURCE TRUE
+#         INSTALL_COMMAND ""
+#         STEP_TARGETS build
+#         )
 
-ExternalProject_Add(ovs
-        PREFIX ovs
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${OVS_PATH}
-        CONFIGURE_COMMAND "./configure"
-        BUILD_COMMAND make
-        BUILD_STATIC_ONLY=1
-        OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/${OVS_PATH}/ovs
-        DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/${OVS_PATH}
-        INCLUDEDIR=
-        LIBDIR=
-        UAPIDIR=
-        install
-        BUILD_IN_SOURCE TRUE
-        INSTALL_COMMAND ":"
-        STEP_TARGETS build
-        )
+# ExternalProject_Add(ovs
+#         PREFIX ovs
+#         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${OVS_PATH}
+#         CONFIGURE_COMMAND "./configure"
+#         BUILD_COMMAND make
+#         BUILD_STATIC_ONLY=1
+#         OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/${OVS_PATH}/ovs
+#         DESTDIR=${CMAKE_CURRENT_BINARY_DIR}/${OVS_PATH}
+#         INCLUDEDIR=
+#         LIBDIR=
+#         UAPIDIR=
+#         install
+#         BUILD_IN_SOURCE TRUE
+#         INSTALL_COMMAND ":"
+#         STEP_TARGETS build
+#         )
 
 # add_library(ovs STATIC IMPORTED)
 # target_link_libraries(ovs INTERFACE ${OVS_PATH}/lib/)
 
 # Set BpfObject input parameters -- note this is usually not necessary unless
 # you're in a highly vendored environment (like libbpf-bootstrap)
-set(BPFOBJECT_BPFTOOL_EXE bpftool)
-set(BPFOBJECT_VMLINUX_H ${CMAKE_CURRENT_SOURCE_DIR}/vmlinux/vmlinux.h)
-set(LIBBPF_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libbpf)
-set(LIBBPF_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf.a)
-set(CMAKE_EXE_LINKER_FLAGS)
+# set(BPFOBJECT_BPFTOOL_EXE bpftool)
+# set(BPFOBJECT_VMLINUX_H ${CMAKE_CURRENT_SOURCE_DIR}/vmlinux/vmlinux.h)
+# set(LIBBPF_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}/libbpf)
+# set(LIBBPF_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/libbpf/libbpf.a)
+# set(CMAKE_EXE_LINKER_FLAGS)
 
-find_package(BpfObject REQUIRED)
-find_package(PkgConfig REQUIRED)
+# find_package(BpfObject REQUIRED)
+# find_package(PkgConfig REQUIRED)
 # Check DPDK
-pkg_check_modules(DPDK REQUIRED IMPORTED_TARGET libdpdk)
+# pkg_check_modules(DPDK REQUIRED IMPORTED_TARGET libdpdk)
 
-bpf_object(xdp src/bpf/xdp.bpf.c)
-add_dependencies(xdp_skel libbpf-build)
-add_compile_definitions(DPDK_NETDEV)
+# bpf_object(xdp src/bpf/xdp.bpf.c)
+# add_dependencies(xdp_skel libbpf-build)
+# add_compile_definitions(DPDK_NETDEV)
 
 add_compile_options(-fpic -ggdb)
 add_executable(orss 
 src/main.c 
 src/env.h 
-src/bpf/xdp.bpf.h 
-src/load_bpf.c src/load_bpf.h
+# src/bpf/xdp.bpf.h 
+# src/load_bpf.c src/load_bpf.h
 src/ringbuffer.c src/ringbuffer.h
 src/hashmap.c src/hashmap.h 
 src/balancer.c src/balancer.h
-
-/home/ubuntu/oRSS-NIC/ovs/lib/entropy.h
-/home/ubuntu/oRSS-NIC/ovs/lib/entropy.c
-/home/ubuntu/oRSS-NIC/ovs/lib/reconnect.h
-/home/ubuntu/oRSS-NIC/ovs/lib/reconnect.c
-/home/ubuntu/oRSS-NIC/ovs/lib/fatal-signal.h
-/home/ubuntu/oRSS-NIC/ovs/lib/fatal-signal.c
-/home/ubuntu/oRSS-NIC/ovs/lib/lldp/aa-structs.h
-/home/ubuntu/oRSS-NIC/ovs/lib/lldp/lldp.c
-/home/ubuntu/oRSS-NIC/ovs/lib/lldp/lldp-const.h
-/home/ubuntu/oRSS-NIC/ovs/lib/lldp/lldpd.c
-/home/ubuntu/oRSS-NIC/ovs/lib/lldp/lldpd.h
-/home/ubuntu/oRSS-NIC/ovs/lib/lldp/lldpd-structs.c
-/home/ubuntu/oRSS-NIC/ovs/lib/lldp/lldpd-structs.h
-/home/ubuntu/oRSS-NIC/ovs/lib/lldp/lldp-tlv.h
-/home/ubuntu/oRSS-NIC/ovs/lib/rstp-state-machines.h
-/home/ubuntu/oRSS-NIC/ovs/lib/rstp-state-machines.c
-/home/ubuntu/oRSS-NIC/ovs/lib/odp-util.h
-/home/ubuntu/oRSS-NIC/ovs/lib/odp-util.c
-/home/ubuntu/oRSS-NIC/ovs/lib/odp-execute.h
-/home/ubuntu/oRSS-NIC/ovs/lib/odp-execute.c
-/home/ubuntu/oRSS-NIC/ovs/lib/aes128.c
-/home/ubuntu/oRSS-NIC/ovs/lib/aes128.h
-/home/ubuntu/oRSS-NIC/ovs/lib/async-append-aio.c
-/home/ubuntu/oRSS-NIC/ovs/lib/async-append.h
-/home/ubuntu/oRSS-NIC/ovs/lib/backtrace.c
-/home/ubuntu/oRSS-NIC/ovs/lib/backtrace.h
-/home/ubuntu/oRSS-NIC/ovs/lib/bfd.c
-/home/ubuntu/oRSS-NIC/ovs/lib/bfd.h
-/home/ubuntu/oRSS-NIC/ovs/lib/bitmap.h
-/home/ubuntu/oRSS-NIC/ovs/lib/bundle.c
-/home/ubuntu/oRSS-NIC/ovs/lib/bundle.h
-/home/ubuntu/oRSS-NIC/ovs/lib/byte-order.h
-/home/ubuntu/oRSS-NIC/ovs/lib/byteq.c
-/home/ubuntu/oRSS-NIC/ovs/lib/byteq.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ccmap.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ccmap.h
-/home/ubuntu/oRSS-NIC/ovs/lib/cfm.c
-/home/ubuntu/oRSS-NIC/ovs/lib/cfm.h
-/home/ubuntu/oRSS-NIC/ovs/lib/classifier.c
-/home/ubuntu/oRSS-NIC/ovs/lib/classifier.h
-/home/ubuntu/oRSS-NIC/ovs/lib/classifier-private.h
-/home/ubuntu/oRSS-NIC/ovs/lib/cmap.c
-/home/ubuntu/oRSS-NIC/ovs/lib/cmap.h
-/home/ubuntu/oRSS-NIC/ovs/lib/colors.c
-/home/ubuntu/oRSS-NIC/ovs/lib/colors.h
-/home/ubuntu/oRSS-NIC/ovs/lib/command-line.c
-/home/ubuntu/oRSS-NIC/ovs/lib/command-line.h
-/home/ubuntu/oRSS-NIC/ovs/lib/compiler.h
-/home/ubuntu/oRSS-NIC/ovs/lib/connectivity.c
-/home/ubuntu/oRSS-NIC/ovs/lib/connectivity.h
-/home/ubuntu/oRSS-NIC/ovs/lib/conntrack.c
-/home/ubuntu/oRSS-NIC/ovs/lib/conntrack.h
-/home/ubuntu/oRSS-NIC/ovs/lib/conntrack-icmp.c
-/home/ubuntu/oRSS-NIC/ovs/lib/conntrack-other.c
-/home/ubuntu/oRSS-NIC/ovs/lib/conntrack-private.h
-/home/ubuntu/oRSS-NIC/ovs/lib/conntrack-tcp.c
-/home/ubuntu/oRSS-NIC/ovs/lib/conntrack-tp.c
-/home/ubuntu/oRSS-NIC/ovs/lib/conntrack-tp.h
-/home/ubuntu/oRSS-NIC/ovs/lib/coverage.c
-/home/ubuntu/oRSS-NIC/ovs/lib/coverage.h
-/home/ubuntu/oRSS-NIC/ovs/lib/crc32c.c
-/home/ubuntu/oRSS-NIC/ovs/lib/crc32c.h
-/home/ubuntu/oRSS-NIC/ovs/lib/csum.c
-/home/ubuntu/oRSS-NIC/ovs/lib/csum.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ct-dpif.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ct-dpif.h
-/home/ubuntu/oRSS-NIC/ovs/lib/daemon.c
-/home/ubuntu/oRSS-NIC/ovs/lib/daemon.h
-/home/ubuntu/oRSS-NIC/ovs/lib/daemon-private.h
-/home/ubuntu/oRSS-NIC/ovs/lib/daemon-unix.c
-/home/ubuntu/oRSS-NIC/ovs/lib/db-ctl-base.c
-/home/ubuntu/oRSS-NIC/ovs/lib/db-ctl-base.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dhcp.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dhparams.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dhparams.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dirs.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dirs.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dns-resolve.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dns-resolve.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dpctl.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dpctl.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-offload.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-offload.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-offload-provider.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-offload-tc.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-offload-dpdk.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-lookup-autovalidator.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-lookup.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-lookup-generic.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-lookup.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-perf.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-perf.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netdev-private.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netlink.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netlink.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netlink-rtnl.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-netlink-rtnl.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dpif-provider.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dpdk.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dpdk.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dp-packet.c
-/home/ubuntu/oRSS-NIC/ovs/lib/dp-packet.h
-/home/ubuntu/oRSS-NIC/ovs/lib/fat-rwlock.c
-/home/ubuntu/oRSS-NIC/ovs/lib/fat-rwlock.h
-/home/ubuntu/oRSS-NIC/ovs/lib/flow.c
-/home/ubuntu/oRSS-NIC/ovs/lib/flow.h
-/home/ubuntu/oRSS-NIC/ovs/lib/getopt_long.c
-/home/ubuntu/oRSS-NIC/ovs/lib/guarded-list.c
-/home/ubuntu/oRSS-NIC/ovs/lib/guarded-list.h
-/home/ubuntu/oRSS-NIC/ovs/lib/hash-aarch64.h
-/home/ubuntu/oRSS-NIC/ovs/lib/hash.c
-/home/ubuntu/oRSS-NIC/ovs/lib/hash.h
-/home/ubuntu/oRSS-NIC/ovs/lib/heap.c
-/home/ubuntu/oRSS-NIC/ovs/lib/heap.h
-/home/ubuntu/oRSS-NIC/ovs/lib/hindex.c
-/home/ubuntu/oRSS-NIC/ovs/lib/hindex.h
-/home/ubuntu/oRSS-NIC/ovs/lib/hmap.c
-/home/ubuntu/oRSS-NIC/ovs/lib/hmapx.c
-/home/ubuntu/oRSS-NIC/ovs/lib/hmapx.h
-/home/ubuntu/oRSS-NIC/ovs/lib/id-pool.c
-/home/ubuntu/oRSS-NIC/ovs/lib/id-pool.h
-/home/ubuntu/oRSS-NIC/ovs/lib/if-notifier.c
-/home/ubuntu/oRSS-NIC/ovs/lib/if-notifier.h
-/home/ubuntu/oRSS-NIC/ovs/lib/if-notifier-manual.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ipf.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ipf.h
-/home/ubuntu/oRSS-NIC/ovs/lib/lacp.h
-/home/ubuntu/oRSS-NIC/ovs/lib/lacp.c
-/home/ubuntu/oRSS-NIC/ovs/lib/latch.h
-/home/ubuntu/oRSS-NIC/ovs/lib/latch-unix.c
-/home/ubuntu/oRSS-NIC/ovs/lib/learn.c
-/home/ubuntu/oRSS-NIC/ovs/lib/learn.h
-/home/ubuntu/oRSS-NIC/ovs/lib/learning-switch.c
-/home/ubuntu/oRSS-NIC/ovs/lib/learning-switch.h
-/home/ubuntu/oRSS-NIC/ovs/lib/lockfile.c
-/home/ubuntu/oRSS-NIC/ovs/lib/lockfile.h
-/home/ubuntu/oRSS-NIC/ovs/lib/mac-learning.c
-/home/ubuntu/oRSS-NIC/ovs/lib/mac-learning.h
-/home/ubuntu/oRSS-NIC/ovs/lib/match.c
-/home/ubuntu/oRSS-NIC/ovs/lib/mcast-snooping.c
-/home/ubuntu/oRSS-NIC/ovs/lib/mcast-snooping.h
-/home/ubuntu/oRSS-NIC/ovs/lib/memory.c
-/home/ubuntu/oRSS-NIC/ovs/lib/memory.h
-/home/ubuntu/oRSS-NIC/ovs/lib/meta-flow.c
-/home/ubuntu/oRSS-NIC/ovs/lib/multipath.c
-/home/ubuntu/oRSS-NIC/ovs/lib/multipath.h
-/home/ubuntu/oRSS-NIC/ovs/lib/namemap.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-dpdk.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-dpdk.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-dummy.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-linux.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-linux.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-linux-private.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-native-tnl.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-native-tnl.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-provider.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-vport.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-vport.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netdev-vport-private.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netflow.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netlink.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netlink-conntrack.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netlink-conntrack.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netlink.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netlink-notifier.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netlink-notifier.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netlink-protocol.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netlink-socket.c
-/home/ubuntu/oRSS-NIC/ovs/lib/netlink-socket.h
-/home/ubuntu/oRSS-NIC/ovs/lib/netnsid.h
-/home/ubuntu/oRSS-NIC/ovs/lib/nx-match.c
-/home/ubuntu/oRSS-NIC/ovs/lib/nx-match.h
-/home/ubuntu/oRSS-NIC/ovs/lib/object-collection.c
-/home/ubuntu/oRSS-NIC/ovs/lib/object-collection.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-util.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-version-opt.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-version-opt.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic-c11.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic-c++.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic-clang.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic-flag-gcc4.7+.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic-gcc4.7+.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic-gcc4+.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic-i586.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic-locked.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic-locked.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic-msvc.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic-pthreads.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-atomic-x86_64.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-condition.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-condition.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-cs.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-cs.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-data.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-data.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-error.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-error.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-idl.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-idl.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-idl-provider.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-map-op.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-map-op.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-parser.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-parser.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-server-idl.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-server-idl.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-session.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-session.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-set-op.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-set-op.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-types.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovsdb-types.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-lldp.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-lldp.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-numa.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-numa.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-rcu.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-rcu.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-router.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-router.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-thread.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ovs-thread.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ox-stat.c
-/home/ubuntu/oRSS-NIC/ovs/lib/ox-stat.h
-/home/ubuntu/oRSS-NIC/ovs/lib/packets.c
-/home/ubuntu/oRSS-NIC/ovs/lib/packets.h
-/home/ubuntu/oRSS-NIC/ovs/lib/pcap-file.c
-/home/ubuntu/oRSS-NIC/ovs/lib/pcap-file.h
-/home/ubuntu/oRSS-NIC/ovs/lib/perf-counter.c
-/home/ubuntu/oRSS-NIC/ovs/lib/perf-counter.h
-/home/ubuntu/oRSS-NIC/ovs/lib/poll-loop.c
-/home/ubuntu/oRSS-NIC/ovs/lib/process.c
-/home/ubuntu/oRSS-NIC/ovs/lib/process.h
-/home/ubuntu/oRSS-NIC/ovs/lib/pvector.c
-/home/ubuntu/oRSS-NIC/ovs/lib/pvector.h
-/home/ubuntu/oRSS-NIC/ovs/lib/random.c
-/home/ubuntu/oRSS-NIC/ovs/lib/random.h
-/home/ubuntu/oRSS-NIC/ovs/lib/rtnetlink.c
-/home/ubuntu/oRSS-NIC/ovs/lib/rtnetlink.h
-/home/ubuntu/oRSS-NIC/ovs/lib/sat-math.h
-/home/ubuntu/oRSS-NIC/ovs/lib/seq.c
-/home/ubuntu/oRSS-NIC/ovs/lib/seq.h
-/home/ubuntu/oRSS-NIC/ovs/lib/sflow_agent.c
-/home/ubuntu/oRSS-NIC/ovs/lib/sflow_api.h
-/home/ubuntu/oRSS-NIC/ovs/lib/sflow.h
-/home/ubuntu/oRSS-NIC/ovs/lib/sflow_poller.c
-/home/ubuntu/oRSS-NIC/ovs/lib/sflow_receiver.c
-/home/ubuntu/oRSS-NIC/ovs/lib/sflow_sampler.c
-/home/ubuntu/oRSS-NIC/ovs/lib/sha1.c
-/home/ubuntu/oRSS-NIC/ovs/lib/sha1.h
-/home/ubuntu/oRSS-NIC/ovs/lib/shash.c
-/home/ubuntu/oRSS-NIC/ovs/lib/signals.c
-/home/ubuntu/oRSS-NIC/ovs/lib/signals.h
-/home/ubuntu/oRSS-NIC/ovs/lib/simap.c
-/home/ubuntu/oRSS-NIC/ovs/lib/simap.h
-/home/ubuntu/oRSS-NIC/ovs/lib/skiplist.c
-/home/ubuntu/oRSS-NIC/ovs/lib/skiplist.h
-/home/ubuntu/oRSS-NIC/ovs/lib/smap.c
-/home/ubuntu/oRSS-NIC/ovs/lib/smap.h
-/home/ubuntu/oRSS-NIC/ovs/lib/socket-util.c
-/home/ubuntu/oRSS-NIC/ovs/lib/socket-util.h
-/home/ubuntu/oRSS-NIC/ovs/lib/socket-util-unix.c
-/home/ubuntu/oRSS-NIC/ovs/lib/sort.c
-/home/ubuntu/oRSS-NIC/ovs/lib/sort.h
-/home/ubuntu/oRSS-NIC/ovs/lib/sset.c
-/home/ubuntu/oRSS-NIC/ovs/lib/sset.h
-/home/ubuntu/oRSS-NIC/ovs/lib/stdio.c
-/home/ubuntu/oRSS-NIC/ovs/lib/stdio.h
-/home/ubuntu/oRSS-NIC/ovs/lib/stdio.h.in
-/home/ubuntu/oRSS-NIC/ovs/lib/stopwatch.c
-/home/ubuntu/oRSS-NIC/ovs/lib/stopwatch.h
-/home/ubuntu/oRSS-NIC/ovs/lib/stp.c
-/home/ubuntu/oRSS-NIC/ovs/lib/stp.h
-/home/ubuntu/oRSS-NIC/ovs/lib/stream.c
-/home/ubuntu/oRSS-NIC/ovs/lib/stream-fd.c
-/home/ubuntu/oRSS-NIC/ovs/lib/stream-fd.h
-/home/ubuntu/oRSS-NIC/ovs/lib/stream.h
-/home/ubuntu/oRSS-NIC/ovs/lib/stream-provider.h
-/home/ubuntu/oRSS-NIC/ovs/lib/stream-ssl.c
-/home/ubuntu/oRSS-NIC/ovs/lib/stream-ssl.h
-/home/ubuntu/oRSS-NIC/ovs/lib/stream-tcp.c
-/home/ubuntu/oRSS-NIC/ovs/lib/stream-unix.c
-/home/ubuntu/oRSS-NIC/ovs/lib/string.c
-/home/ubuntu/oRSS-NIC/ovs/lib/string.h
-/home/ubuntu/oRSS-NIC/ovs/lib/string.h.in
-/home/ubuntu/oRSS-NIC/ovs/lib/strsep.c
-/home/ubuntu/oRSS-NIC/ovs/lib/svec.c
-/home/ubuntu/oRSS-NIC/ovs/lib/svec.h
-/home/ubuntu/oRSS-NIC/ovs/lib/syslog-direct.c
-/home/ubuntu/oRSS-NIC/ovs/lib/syslog-direct.h
-/home/ubuntu/oRSS-NIC/ovs/lib/syslog-libc.c
-/home/ubuntu/oRSS-NIC/ovs/lib/syslog-libc.h
-/home/ubuntu/oRSS-NIC/ovs/lib/syslog-null.c
-/home/ubuntu/oRSS-NIC/ovs/lib/syslog-null.h
-/home/ubuntu/oRSS-NIC/ovs/lib/syslog-provider.h
-/home/ubuntu/oRSS-NIC/ovs/lib/table.c
-/home/ubuntu/oRSS-NIC/ovs/lib/table.h
-/home/ubuntu/oRSS-NIC/ovs/lib/tc.c
-/home/ubuntu/oRSS-NIC/ovs/lib/tc.h
-/home/ubuntu/oRSS-NIC/ovs/lib/timer.c
-/home/ubuntu/oRSS-NIC/ovs/lib/timer.h
-/home/ubuntu/oRSS-NIC/ovs/lib/timeval.c
-/home/ubuntu/oRSS-NIC/ovs/lib/timeval.h
-/home/ubuntu/oRSS-NIC/ovs/lib/tnl-neigh-cache.c
-/home/ubuntu/oRSS-NIC/ovs/lib/tnl-neigh-cache.h
-/home/ubuntu/oRSS-NIC/ovs/lib/tnl-ports.c
-/home/ubuntu/oRSS-NIC/ovs/lib/tnl-ports.h
-/home/ubuntu/oRSS-NIC/ovs/lib/token-bucket.c
-/home/ubuntu/oRSS-NIC/ovs/lib/tun-metadata.c
-/home/ubuntu/oRSS-NIC/ovs/lib/tun-metadata.h
-/home/ubuntu/oRSS-NIC/ovs/lib/unaligned.h
-/home/ubuntu/oRSS-NIC/ovs/lib/unicode.c
-/home/ubuntu/oRSS-NIC/ovs/lib/unicode.h
-/home/ubuntu/oRSS-NIC/ovs/lib/unixctl.c
-/home/ubuntu/oRSS-NIC/ovs/lib/unixctl.h
-/home/ubuntu/oRSS-NIC/ovs/lib/userspace-tso.c
-/home/ubuntu/oRSS-NIC/ovs/lib/userspace-tso.h
-/home/ubuntu/oRSS-NIC/ovs/lib/util.c
-/home/ubuntu/oRSS-NIC/ovs/lib/util.h
-/home/ubuntu/oRSS-NIC/ovs/lib/uuid.c
-/home/ubuntu/oRSS-NIC/ovs/lib/uuid.h
-/home/ubuntu/oRSS-NIC/ovs/lib/valgrind.h
-/home/ubuntu/oRSS-NIC/ovs/lib/vconn.c
-/home/ubuntu/oRSS-NIC/ovs/lib/vconn-provider.h
-/home/ubuntu/oRSS-NIC/ovs/lib/vconn-stream.c
-/home/ubuntu/oRSS-NIC/ovs/lib/versions.h
-/home/ubuntu/oRSS-NIC/ovs/lib/vlan-bitmap.c
-/home/ubuntu/oRSS-NIC/ovs/lib/vlan-bitmap.h
-/home/ubuntu/oRSS-NIC/ovs/lib/vl-mff-map.h
-/home/ubuntu/oRSS-NIC/ovs/lib/vlog.c
-/home/ubuntu/oRSS-NIC/ovs/lib/vswitch-idl.c
-/home/ubuntu/oRSS-NIC/ovs/lib/vswitch-idl.h
-/home/ubuntu/oRSS-NIC/ovs/lib/rstp.h
-/home/ubuntu/oRSS-NIC/ovs/lib/rstp.c
-/home/ubuntu/oRSS-NIC/ovs/lib/route-table.h
-/home/ubuntu/oRSS-NIC/ovs/lib/route-table.c
-/home/ubuntu/oRSS-NIC/ovs/lib/jhash.h
-/home/ubuntu/oRSS-NIC/ovs/lib/jhash.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/bond.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/bond.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/bundles.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/bundles.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/collectors.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/collectors.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/connmgr.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/connmgr.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/fail-open.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/fail-open.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/in-band.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/in-band.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/names.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/netflow.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/netflow.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-mirror.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-mirror.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-monitor.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-monitor.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-sflow.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-sflow.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-rid.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-rid.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-upcall.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-upcall.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-trace.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-trace.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-ipfix.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-ipfix.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-xlate.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-xlate-cache.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-xlate-cache.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-dpif-xlate.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto-provider.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/pinsched.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/pinsched.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/tunnel.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/tunnel.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto.h
-/home/ubuntu/oRSS-NIC/ovs/ofproto/ofproto.c
-/home/ubuntu/oRSS-NIC/ovs/ofproto/names.c
-/home/ubuntu/oRSS-NIC/ovs/include/openflow/nicira-ext.h
-/home/ubuntu/oRSS-NIC/ovs/include/openflow/openflow.h
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/thread.h
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/dynamic-string.h
-/home/ubuntu/oRSS-NIC/ovs/lib/dynamic-string.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/meta-flow.h
-/home/ubuntu/oRSS-NIC/ovs/lib/meta-flow.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-actions.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-actions.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-packet.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-packet.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-bundle.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-bundle.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-errors.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-errors.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-group.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-group.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-match.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-match.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-meter.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-meter.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-msgs.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-msgs.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-monitor.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-monitor.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-port.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-port.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-print.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-print.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-util.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-util.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-parse.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-parse.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-queue.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-queue.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-switch.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-switch.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-table.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-table.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-flow.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-flow.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-protocol.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-protocol.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-ipfix.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-ipfix.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-connection.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-connection.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-ed-props.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-ed-props.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofpbuf.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofpbuf.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/shash.h
-/home/ubuntu/oRSS-NIC/ovs/lib/shash.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/vconn.h
-/home/ubuntu/oRSS-NIC/ovs/lib/vconn.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/vlog.h
-/home/ubuntu/oRSS-NIC/ovs/lib/vlog.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/match.h
-/home/ubuntu/oRSS-NIC/ovs/lib/match.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/packets.h
-/home/ubuntu/oRSS-NIC/ovs/lib/packets.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/json.h
-/home/ubuntu/oRSS-NIC/ovs/lib/json.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/ofp-prop.h
-/home/ubuntu/oRSS-NIC/ovs/lib/ofp-prop.c
-/home/ubuntu/oRSS-NIC/ovs/include/openvswitch/rconn.h
-/home/ubuntu/oRSS-NIC/ovs/lib/rconn.c
-/home/ubuntu/oRSS-NIC/ovs/lib/jsonrpc.h
-/home/ubuntu/oRSS-NIC/ovs/lib/jsonrpc.c
-
-src/ovs-ofctl.c)
+src/openflow.c src/openflow.h)
 # add_executable(orss src/main.c src/env.h src/bpf/xdp.bpf.h src/load_bpf.c src/load_bpf.h src/ovs_utils.h src/ovs_utils.c)
-target_include_directories(orss PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ovs)
-target_include_directories(orss PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${OVS_PATH}/ofproto)
-target_include_directories(orss PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${OVS_PATH}/include)
-target_include_directories(orss PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ovs/lib)
-target_link_libraries(orss xdp_skel ssl crypto atomic m unwind cap-ng unbound PkgConfig::DPDK pthread rt)
+# target_include_directories(orss PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ovs)
+# target_include_directories(orss PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${OVS_PATH}/ofproto)
+# target_include_directories(orss PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/${OVS_PATH}/include)
+# target_include_directories(orss PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/ovs/lib)
+# target_link_libraries(orss)

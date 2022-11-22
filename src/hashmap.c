@@ -104,3 +104,13 @@ uint8_t hashmap_get_next(struct HashMap *hashmap, struct FiveTuple *current_key,
     return 0;
     }
 }
+
+void hashmap_cleanup_inactive_flows(struct HashMap *hashmap){
+    for (int i = 0; i < HASHMAP_SIZE; i++) {
+        if (hashmap->map[i].valid && !hashmap->map[i].value->is_active) {
+            hashmap->map[i].valid = 0;
+            ringbuffer_destroy(hashmap->map[i].value);
+            hashmap->size--;
+        }
+    }
+}

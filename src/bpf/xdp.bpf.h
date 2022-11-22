@@ -13,7 +13,6 @@ struct FiveTuple {
   uint16_t src_port; /** 2 bytes source port */
   uint16_t dst_port; /** 2 bytes destination port */
   uint8_t proto;  /** 1 byte protocol */
-  uint8_t pad[3]; /** 3 byte padding */
 };
 
 struct ConnectionState {

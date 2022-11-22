@@ -34,6 +34,8 @@ IP_TCP = 6
 IP_UDP = 17
 IP_ICMP = 1
 
+DEFAULT_VLAN = 0x0000
+
 class SimpleSwitch(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION]
 
@@ -55,6 +57,8 @@ class SimpleSwitch(app_manager.RyuApp):
         self.delete_all_flows(self.datapaths[0])
         self.arp_flood(self.datapaths[0])
         self.host_egress(self.datapaths[0])
+        self.generate_flows(self.datapaths[0])
+        
 
     def delete_all_flows(self, datapath):
         ofproto = datapath.ofproto
@@ -93,6 +97,18 @@ class SimpleSwitch(app_manager.RyuApp):
             actions=actions)
         datapath.send_msg(mod)
 
+
+    def dump_flow_stats(self, datapath):
+        ofproto = datapath.ofproto
+        parser = datapath.ofproto_parser
+
+
+        match = parser.OFPMatch()
+        table_id = 0xff
+        out_port = ofproto.OFPP_NONE
+        req = parser.OFPFlowStatsRequest(datapath,0,match,table_id,out_port)
+        datapath.send_msg(req)
+
     def add_flow(self, datapath, in_port, flow_spec, actions):
         ofproto = datapath.ofproto
 
@@ -109,7 +125,9 @@ class SimpleSwitch(app_manager.RyuApp):
                 dl_type=flow_spec['dl_type'],
                 nw_proto=flow_spec['nw_proto'],
                 nw_src=flow_spec['nw_src'],
-                tp_src=flow_spec['tp_src'])
+                nw_dst=flow_spec['nw_dst'],
+                tp_src=flow_spec['tp_src'],
+                tp_dst=flow_spec['tp_dst'])
         else:
             raise Exception("Unsupported nw_proto: %s" % flow_spec["nw_proto"])
 
@@ -120,6 +138,22 @@ class SimpleSwitch(app_manager.RyuApp):
             flags=ofproto.OFPFF_SEND_FLOW_REM, actions=actions)
         datapath.send_msg(mod)
 
+    def generate_flows(self, datapath):
+        # Installs a bunch of false flows for testing
+        for i in range(1, 10):
+            flow_spec = {
+                "dl_type": ether_types.ETH_TYPE_IP,
+                "nw_proto": IP_TCP,
+                "nw_src": "10.0.0.2",
+                "nw_dst": '10.0.0.1',
+                "tp_src": i,
+                "tp_dst": 80
+            }
+            actions = [
+                datapath.ofproto_parser.OFPActionVlanVid(DEFAULT_VLAN),
+                datapath.ofproto_parser.OFPActionOutput(HOST_PORT)]
+            self.add_flow(datapath, OUT_PORT, flow_spec, actions)
+
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
         msg = ev.msg
@@ -128,7 +162,9 @@ class SimpleSwitch(app_manager.RyuApp):
             'dl_type': '',
             'nw_proto': '',
             'nw_src': '',
-            'tp_src': ''
+            'nw_dst': '',
+            'tp_src': '',
+            'tp_dst': ''
         }
         pkt = packet.Packet(msg.data)
         # Get the Ethernet frame
@@ -144,15 +180,20 @@ class SimpleSwitch(app_manager.RyuApp):
             ip = pkt.get_protocol(ipv4.ipv4)
             flow_spec['nw_proto'] = ip.proto
             flow_spec['nw_src'] = ip.src
+            flow_spec['nw_dst'] = ip.dst
             if (flow_spec['nw_proto'] == 6):
                 # Get the TCP packet
                 tcp_pkt = pkt.get_protocol(tcp.tcp)
                 flow_spec['tp_src'] = tcp_pkt.src_port
+                flow_spec['tp_dst'] = tcp_pkt.dst_port
             elif (flow_spec['nw_proto'] == 17):
                 # Get the UDP packet
                 udp_pkt = pkt.get_protocol(udp.udp)
                 flow_spec['tp_src'] = udp_pkt.src_port
-            actions = [datapath.ofproto_parser.OFPActionOutput(HOST_PORT)]
+                flow_spec['tp_dst'] = udp_pkt.dst_port
+            actions = [
+                datapath.ofproto_parser.OFPActionVlanVid(DEFAULT_VLAN),
+                datapath.ofproto_parser.OFPActionOutput(HOST_PORT)]
             self.add_flow(datapath, msg.in_port, flow_spec, actions)
             self.logger.info("packet received on port %s from %s", msg.in_port, ip.src)
 
