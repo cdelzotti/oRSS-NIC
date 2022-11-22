@@ -55,7 +55,7 @@ void get_socket(openflow_connection *conn) {
 }
 
 /**
- * @brief Ensures that exactly `count` bytes are read from `fd` and put in `buf`
+ * @brief Ensures that exactly `count` bytes are read from `fd` and put in `buf` (or an error occurs)
  *
  * @param fd : the file descriptor to read from
  * @param buf : the buffer to write to, must be at least `count` bytes long (malloc is on you)
@@ -63,7 +63,7 @@ void get_socket(openflow_connection *conn) {
  *
  * @note This function will block until all bytes are read or an error occurs, allowing to perform a blocking read on a non-blocking socket
  */
-void safe_read(openflow_socket_fd fd, void *buf, uint16_t count) {
+uint16_t safe_read(openflow_socket_fd fd, void *buf, uint16_t count) {
     uint16_t bytes_read = 0;
     while (bytes_read < count) {
         int valread = read(fd, buf + bytes_read, count - bytes_read);
@@ -75,6 +75,7 @@ void safe_read(openflow_socket_fd fd, void *buf, uint16_t count) {
             bytes_read += valread;
         }
     }
+    return bytes_read;
 }
 
 /**
